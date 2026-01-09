@@ -2,12 +2,42 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Search, Users, Building } from "lucide-react";
+import { Menu, X, Search, Users, Building, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import AuthModal from "./auth/auth-modal";
+import { useStore } from "@/store/zustand";
+import { useAuth } from "@/store/firebase-auth-provider";
+import { signOut } from "firebase/auth";
+import { auth } from "@/firebase";
+import { toast } from "sonner";
+import type { Profile } from "@/types";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
   const router = useRouter();
+  const { user, setUser } = useStore();
+  const { user: firebaseUser } = useAuth();
+
+  const openAuthModal = (tab: "login" | "register") => {
+    setAuthModalTab(tab);
+    setIsAuthModalOpen(true);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      toast.success("Signed out successfully");
+      router.push("/");
+    } catch {
+      toast.error("Failed to sign out");
+    }
+  };
+
+  const isLoggedIn = !!user || !!firebaseUser;
+  const userProfile = user as Profile | null;
 
   return (
     <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-0 z-50">
@@ -60,12 +90,39 @@ export default function Header() {
             <Building className="w-6 h-6 " />
             <span className="text-sm">Studios</span>
           </Link>
-          <button className="text-gray-500 hover:text-gray-800 text-sm font-semibold px-4 transition-colors">
-            Join now
-          </button>
-          <button className="text-[#21c55e] hover:text-white border border-[#21c55e] hover:bg-[#21c55e] rounded-full text-sm font-semibold px-6 py-2 transition-all">
-            Sign in
-          </button>
+          
+          {isLoggedIn ? (
+            <>
+              <button
+                onClick={() => router.push(`/dashboard/${userProfile?.user_type || 'instructor'}`)}
+                className="text-gray-500 hover:text-gray-800 text-sm font-semibold px-4 transition-colors"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="text-red-500 hover:text-red-600 flex items-center gap-1 text-sm font-semibold px-4 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => openAuthModal("register")}
+                className="text-gray-500 hover:text-gray-800 text-sm font-semibold px-4 transition-colors"
+              >
+                Join now
+              </button>
+              <button 
+                onClick={() => openAuthModal("login")}
+                className="text-[#21c55e] hover:text-white border border-[#21c55e] hover:bg-[#21c55e] rounded-full text-sm font-semibold px-6 py-2 transition-all"
+              >
+                Sign in
+              </button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -106,18 +163,59 @@ export default function Header() {
             </Link>
           </div>
           <div className="border-t border-gray-200 dark:border-slate-800 py-4">
-            <button
-              onClick={() => router.push("/signup")}
-              className="block w-full text-left px-4 py-2 text-gray-800 hover:text-[#21c55e]"
-            >
-              Join now
-            </button>
-            <button className="block w-full text-left px-4 py-2 text-[#21c55e] hover:bg-[#21c55e] hover:text-white">
-              Sign in
-            </button>
+            {isLoggedIn ? (
+              <>
+                <button
+                  onClick={() => {
+                    router.push(`/dashboard/${userProfile?.user_type || 'instructor'}`);
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-gray-800 hover:text-[#21c55e]"
+                >
+                  Dashboard
+                </button>
+                <button 
+                  onClick={() => {
+                    handleSignOut();
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-red-500 hover:text-red-600"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    openAuthModal("register");
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-gray-800 hover:text-[#21c55e]"
+                >
+                  Join now
+                </button>
+                <button 
+                  onClick={() => {
+                    openAuthModal("login");
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-[#21c55e] hover:bg-[#21c55e] hover:text-white"
+                >
+                  Sign in
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)}
+        defaultTab={authModalTab}
+      />
     </header>
   );
 }
