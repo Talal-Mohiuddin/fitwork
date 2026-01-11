@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Search, Users, Building, LogOut } from "lucide-react";
+import { Menu, X, Search, Users, Building, LogOut, UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AuthModal from "./auth/auth-modal";
 import { useStore } from "@/store/zustand";
@@ -38,6 +38,13 @@ export default function Header() {
 
   const isLoggedIn = !!user || !!firebaseUser;
   const userProfile = user as Profile | null;
+
+  const getProfileLink = () => {
+    if (userProfile?.user_type === "studio") {
+      return "/profile/studio";
+    }
+    return "/profile/instructor";
+  };
 
   return (
     <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-0 z-50">
@@ -93,6 +100,13 @@ export default function Header() {
           
           {isLoggedIn ? (
             <>
+              <button
+                onClick={() => router.push(getProfileLink())}
+                className="flex flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <UserCircle className="w-6 h-6" />
+                <span className="text-sm">Profile</span>
+              </button>
               <button
                 onClick={() => router.push(`/dashboard/${userProfile?.user_type || 'instructor'}`)}
                 className="text-gray-500 hover:text-gray-800 text-sm font-semibold px-4 transition-colors"
@@ -165,6 +179,15 @@ export default function Header() {
           <div className="border-t border-gray-200 dark:border-slate-800 py-4">
             {isLoggedIn ? (
               <>
+                <button
+                  onClick={() => {
+                    router.push(getProfileLink());
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-gray-800 hover:text-[#21c55e]"
+                >
+                  My Profile
+                </button>
                 <button
                   onClick={() => {
                     router.push(`/dashboard/${userProfile?.user_type || 'instructor'}`);

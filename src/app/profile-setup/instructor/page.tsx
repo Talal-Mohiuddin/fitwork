@@ -9,8 +9,9 @@ import CertificationsSection from "./_components/CertificationsSection";
 import AvailabilitySection from "./_components/AvailabilitySection";
 import MediaSection from "./_components/MediaSection";
 import ProfilePreviewModal from "./_components/ProfilePreviewModal";
-import { saveProfileDraft, submitProfile } from "@/services/instructorProfileService";
+import { saveProfileDraft, submitProfile, getInstructorProfile } from "@/services/instructorProfileService";
 import { useStore } from "@/store/zustand";
+import { useAuth } from "@/store/firebase-auth-provider";
 
 type FormStep = "basics" | "experience" | "certs" | "availability" | "media";
 
@@ -27,12 +28,14 @@ export default function InstructorProfileSetup() {
   const [completionPercentage, setCompletionPercentage] = useState(20);
   const [isSaving, setIsSaving] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useStore();
+  const { user: firebaseUser, profile: authProfile } = useAuth();
   
   const [profile, setProfile] = useState<Partial<Profile>>({
     user_type: "instructor",
-    full_name: "Alex Morgan",
-    email: "alex@fitwork.com",
+    full_name: "",
+    email: "",
   });
   
   const sectionRefs = useRef<Record<FormStep, HTMLElement | null>>({
@@ -42,6 +45,50 @@ export default function InstructorProfileSetup() {
     availability: null,
     media: null,
   });
+
+  // Load existing profile data on mount
+  useEffect(() => {
+    const loadExistingProfile = async () => {
+      const userId = firebaseUser?.uid || (user as any)?.uid || (user as any)?.id;
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const existingProfile = await getInstructorProfile(userId);
+        if (existingProfile) {
+          // Merge existing profile data
+          setProfile({
+            ...existingProfile,
+            // Ensure email from auth is used
+            email: firebaseUser?.email || authProfile?.email || existingProfile.email,
+          });
+          updateCompletionPercentage(existingProfile);
+          console.log("Loaded existing profile:", existingProfile);
+        } else {
+          // Set defaults from auth
+          setProfile({
+            user_type: "instructor",
+            full_name: firebaseUser?.displayName || authProfile?.full_name || "",
+            email: firebaseUser?.email || authProfile?.email || "",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+        // Set defaults on error
+        setProfile({
+          user_type: "instructor",
+          full_name: firebaseUser?.displayName || "",
+          email: firebaseUser?.email || "",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadExistingProfile();
+  }, [firebaseUser, authProfile, user]);
 
   // Scroll spy to detect active section
   useEffect(() => {
@@ -129,7 +176,7 @@ export default function InstructorProfileSetup() {
   };
 
   const handleSaveDraft = async () => {
-    const userId = (user as any)?.uid || (user as any)?.id;
+    const userId = firebaseUser?.uid || (user as any)?.uid || (user as any)?.id;
     if (!userId) {
       alert("Please log in first");
       return;
@@ -142,9 +189,15 @@ export default function InstructorProfileSetup() {
         console.log("Uploading images...");
       }
       
-      await saveProfileDraft(userId, profile);
+      // Ensure email is from auth
+      const profileToSave = {
+        ...profile,
+        email: firebaseUser?.email || profile.email,
+      };
+      
+      await saveProfileDraft(userId, profileToSave);
       alert("✓ Profile saved as draft successfully!");
-      console.log("Draft saved:", profile);
+      console.log("Draft saved:", profileToSave);
     } catch (error) {
       console.error("Error saving draft:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to save draft";
@@ -161,8 +214,9 @@ export default function InstructorProfileSetup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const userId = (user as any)?.uid || (user as any)?.id;
+    console.log("Handle submit called");
+    const userId = firebaseUser?.uid || (user as any)?.uid || (user as any)?.id;
+    console.log("Submitting profile for userId:", userId, profile);
     if (!userId) {
       alert("Please log in first");
       return;
@@ -192,17 +246,18 @@ export default function InstructorProfileSetup() {
         console.log("Uploading images before submission...");
       }
 
-      await submitProfile(userId, profile);
+      // Ensure email is from auth
+      const profileToSubmit = {
+        ...profile,
+        email: firebaseUser?.email || profile.email,
+      };
+
+      await submitProfile(userId, profileToSubmit);
       alert("✓ Profile submitted successfully! We will review it shortly.");
-      console.log("Profile submitted:", profile);
+      console.log("Profile submitted:", profileToSubmit);
       
-      // Reset form
-      setProfile({
-        user_type: "instructor",
-        full_name: "",
-        email: (user as any)?.email || "",
-      });
-      setCompletionPercentage(20);
+      // Redirect to dashboard instead of resetting
+      window.location.href = "/dashboard/instructor";
     } catch (error) {
       console.error("Error submitting profile:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to submit profile";
@@ -249,6 +304,18 @@ export default function InstructorProfileSetup() {
   };
 
   const completedSections = getCompletedSections();
+
+  // Show loading state while fetching existing profile
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader className="w-10 h-10 text-emerald-500 animate-spin" />
+          <p className="text-slate-500">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50/50 dark:bg-slate-950">
@@ -378,6 +445,7 @@ export default function InstructorProfileSetup() {
               <button
                 className="flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all active:scale-95 disabled:opacity-70"
                 type="submit"
+                onClick={handleSubmit}
                 disabled={isSaving}
               >
                 {isSaving ? (

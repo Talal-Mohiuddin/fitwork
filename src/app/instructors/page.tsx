@@ -1,19 +1,139 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Grid3x3, List } from "lucide-react";
-import { instructors } from "@/data";
+import { useState, useEffect, useCallback } from "react";
+import { ChevronDown, Grid3x3, List, RefreshCw, Users } from "lucide-react";
 import InstructorCard from "./_components/InstructorCard";
 import FilterSidebar from "./_components/FilterSidebar";
+import { Profile } from "@/types";
+import { getInstructors, subscribeToInstructors, InstructorFilters } from "@/services/talentService";
+import { Button } from "@/components/ui/button";
 
 export default function InstructorsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filteredInstructors, setFilteredInstructors] = useState(instructors);
+  const [instructors, setInstructors] = useState<Profile[]>([]);
+  const [filteredInstructors, setFilteredInstructors] = useState<Profile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [filters, setFilters] = useState<InstructorFilters>({});
 
-  const handleFilterChange = (filters: any) => {
-    // Filter logic would go here
-    setFilteredInstructors(instructors);
+  // Load instructors from Firebase
+  const loadInstructors = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const { instructors: data } = await getInstructors({
+        ...filters,
+        limitCount: 50,
+      });
+      
+      setInstructors(data);
+      setFilteredInstructors(data);
+    } catch (err) {
+      console.error("Error loading instructors:", err);
+      setError("Failed to load instructors. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters]);
+
+  // Initial load and subscribe to real-time updates
+  useEffect(() => {
+    loadInstructors();
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToInstructors(
+      (data) => {
+        setInstructors(data);
+        applyFilters(data, filters);
+        setIsLoading(false);
+      },
+      { openToWork: filters.openToWork, limitCount: 50 }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Apply filters when they change
+  useEffect(() => {
+    applyFilters(instructors, filters);
+  }, [filters, instructors]);
+
+  const applyFilters = (data: Profile[], currentFilters: InstructorFilters) => {
+    let filtered = [...data];
+
+    // Location filter
+    if (currentFilters.location) {
+      const locationLower = currentFilters.location.toLowerCase();
+      filtered = filtered.filter(
+        (inst) => inst.location?.toLowerCase().includes(locationLower)
+      );
+    }
+
+    // Styles filter
+    if (currentFilters.styles && currentFilters.styles.length > 0) {
+      filtered = filtered.filter((inst) =>
+        inst.fitness_styles?.some((style) => currentFilters.styles!.includes(style))
+      );
+    }
+
+    // Certifications filter
+    if (currentFilters.certifications && currentFilters.certifications.length > 0) {
+      filtered = filtered.filter((inst) =>
+        inst.certifications?.some((cert) => currentFilters.certifications!.includes(cert))
+      );
+    }
+
+    // Open to work filter
+    if (currentFilters.openToWork !== undefined) {
+      filtered = filtered.filter((inst) => inst.open_to_work === currentFilters.openToWork);
+    }
+
+    // Open to guest spots filter
+    if (currentFilters.openToGuestSpots !== undefined) {
+      filtered = filtered.filter((inst) => inst.open_to_guest_spots === currentFilters.openToGuestSpots);
+    }
+
+    // Touring ready filter
+    if (currentFilters.touringReady !== undefined) {
+      filtered = filtered.filter((inst) => inst.touring_ready === currentFilters.touringReady);
+    }
+
+    // Rating filter
+    if (currentFilters.minRating) {
+      filtered = filtered.filter((inst) => (inst.rating || 0) >= currentFilters.minRating!);
+    }
+
+    // Experience filter
+    if (currentFilters.minExperience) {
+      filtered = filtered.filter(
+        (inst) => (inst.years_of_experience || 0) >= currentFilters.minExperience!
+      );
+    }
+
+    // Sort
+    switch (currentFilters.sortBy) {
+      case "rating":
+        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        break;
+      case "experience":
+        filtered.sort((a, b) => (b.years_of_experience || 0) - (a.years_of_experience || 0));
+        break;
+      case "views":
+        filtered.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+        break;
+      case "recent":
+      default:
+        // Keep default order (by created_at desc from Firebase)
+        break;
+    }
+
+    setFilteredInstructors(filtered);
+  };
+
+  const handleFilterChange = (newFilters: Partial<InstructorFilters>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
   return (
@@ -36,6 +156,16 @@ export default function InstructorsPage() {
                   Find the perfect instructor for your studio in minutes.
                 </p>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadInstructors}
+                disabled={isLoading}
+                className="w-fit"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </div>
 
             {/* Sort Bar */}
@@ -51,8 +181,13 @@ export default function InstructorsPage() {
                   <span className="text-sm text-text-muted hidden sm:inline">
                     Sort by:
                   </span>
-                  <button className="flex items-center gap-1 text-sm font-bold text-text-main dark:text-white hover:text-primary transition-colors">
-                    Recommended
+                  <button 
+                    onClick={() => handleFilterChange({ sortBy: filters.sortBy === "rating" ? "recent" : "rating" })}
+                    className="flex items-center gap-1 text-sm font-bold text-text-main dark:text-white hover:text-primary transition-colors"
+                  >
+                    {filters.sortBy === "rating" ? "Top Rated" : 
+                     filters.sortBy === "experience" ? "Experience" :
+                     filters.sortBy === "views" ? "Most Viewed" : "Recommended"}
                     <ChevronDown size={18} />
                   </button>
                 </div>
@@ -86,22 +221,52 @@ export default function InstructorsPage() {
         {/* Scrollable Grid Area */}
         <div className="flex-1 overflow-y-auto px-6 pb-10 lg:px-10 custom-scrollbar">
           <div className="w-full max-w-[1400px] mx-auto">
-            <div
-          
-              className={
-                viewMode === "grid"
-                  ? "grid grid-cols-1 md:grid-cols-3 gap-6 pt-4"
-                  : "flex flex-col gap-4 pt-4"
-              }
-            >
-              {filteredInstructors.map((instructor) => (
-                <InstructorCard
-                  key={instructor.id}
-                  instructor={instructor}
-                  viewMode={viewMode}
-                />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex flex-col justify-center items-center h-64 gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600"></div>
+                <p className="text-gray-500 dark:text-gray-400">Loading instructors...</p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center h-64 gap-4">
+                <p className="text-red-500 text-center">{error}</p>
+                <Button onClick={loadInstructors} variant="outline">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Try Again
+                </Button>
+              </div>
+            ) : filteredInstructors.length > 0 ? (
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 md:grid-cols-3 gap-6 pt-4"
+                    : "flex flex-col gap-4 pt-4"
+                }
+              >
+                {filteredInstructors.map((instructor) => (
+                  <InstructorCard
+                    key={instructor.id}
+                    instructor={instructor}
+                    viewMode={viewMode}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark">
+                <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  No instructors found
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  Try adjusting your filters or check back later.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setFilters({})}
+                >
+                  Clear all filters
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </main>

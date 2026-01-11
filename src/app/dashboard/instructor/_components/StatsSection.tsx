@@ -1,5 +1,6 @@
-import React from 'react';
-import { DollarSign, Dumbbell, Eye } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { DollarSign, Dumbbell, Eye, Loader2 } from 'lucide-react';
+import { getInstructorStats } from '@/services/talentService';
 
 interface StatCard {
   title: string;
@@ -8,27 +9,87 @@ interface StatCard {
   icon: React.ReactNode;
 }
 
-export default function StatsSection() {
-  const stats: StatCard[] = [
+interface StatsSectionProps {
+  userId?: string;
+}
+
+export default function StatsSection({ userId }: StatsSectionProps) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<StatCard[]>([
     {
       title: 'Total Earnings',
-      value: '$850',
-      change: 12,
+      value: '$0',
+      change: 0,
       icon: <DollarSign size={20} />,
     },
     {
       title: 'Classes Taught',
-      value: '12',
-      change: 2,
+      value: '0',
+      change: 0,
       icon: <Dumbbell size={20} />,
     },
     {
       title: 'Profile Views',
-      value: '45',
-      change: 5,
+      value: '0',
+      change: 0,
       icon: <Eye size={20} />,
     },
-  ];
+  ]);
+
+  useEffect(() => {
+    if (userId) {
+      loadStats();
+    }
+  }, [userId]);
+
+  const loadStats = async () => {
+    if (!userId) return;
+    
+    try {
+      setIsLoading(true);
+      const data = await getInstructorStats(userId);
+      
+      setStats([
+        {
+          title: 'Total Earnings',
+          value: '$850', // Would come from earnings service
+          change: 12,
+          icon: <DollarSign size={20} />,
+        },
+        {
+          title: 'Applications',
+          value: data.totalApplications.toString(),
+          change: data.pendingApplications > 0 ? data.pendingApplications : 0,
+          icon: <Dumbbell size={20} />,
+        },
+        {
+          title: 'Profile Views',
+          value: data.profileViews.toString(),
+          change: 5,
+          icon: <Eye size={20} />,
+        },
+      ]);
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="bg-white dark:bg-[#1e293b] p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center h-24"
+          >
+            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+          </div>
+        ))}
+      </section>
+    );
+  }
 
   return (
     <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">

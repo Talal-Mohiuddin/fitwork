@@ -11,19 +11,23 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase";
 import { Profile } from "@/types";
-import { uploadBase64ToStorage } from "@/lib/uploadToStorage";
+import { 
+  uploadBase64ToCloudinary, 
+  isBase64Image, 
+  isCloudinaryUrl 
+} from "@/lib/cloudinary";
 
 export interface ProfileDraft extends Profile {
-  status: "draft" | "submitted";
+  status: "draft" | "submitted" | "archived";
   savedAt: string;
   submittedAt?: string;
 }
 
 /**
- * Upload profile images (profile photo and gallery) to Firebase Storage
- * @param userId - User ID for storage path
+ * Upload profile images to Cloudinary and return URLs for Firebase storage
+ * @param userId - User ID for folder organization
  * @param profile - Profile data containing base64 images
- * @returns Profile with uploaded image URLs
+ * @returns Profile with Cloudinary image URLs
  */
 async function uploadProfileImages(
   userId: string,
@@ -35,31 +39,32 @@ async function uploadProfileImages(
     // Upload profile photo if it's a base64 string
     if (
       updatedProfile.profile_photo &&
-      updatedProfile.profile_photo.startsWith("data:image")
+      isBase64Image(updatedProfile.profile_photo)
     ) {
-      console.log("Uploading profile photo...");
-      const photoPath = `instructors/${userId}/profile_photo_${Date.now()}.jpg`;
-      const photoURL = await uploadBase64ToStorage(
+      console.log("Uploading profile photo to Cloudinary...");
+      const result = await uploadBase64ToCloudinary(
         updatedProfile.profile_photo,
-        photoPath
+        `fitwork/instructors/${userId}/profile`
       );
-      updatedProfile.profile_photo = photoURL;
-      console.log("Profile photo uploaded:", photoURL);
+      updatedProfile.profile_photo = result.secure_url;
+      console.log("Profile photo uploaded:", result.secure_url);
     }
 
     // Upload gallery images if they're base64 strings
     if (updatedProfile.gallery_images && updatedProfile.gallery_images.length > 0) {
-      console.log("Uploading gallery images...");
+      console.log("Uploading gallery images to Cloudinary...");
       const uploadedGalleryImages: string[] = [];
 
       for (let i = 0; i < updatedProfile.gallery_images.length; i++) {
         const img = updatedProfile.gallery_images[i];
-        if (img.startsWith("data:image")) {
-          const galleryPath = `instructors/${userId}/gallery_${Date.now()}_${i}.jpg`;
-          const imgURL = await uploadBase64ToStorage(img, galleryPath);
-          uploadedGalleryImages.push(imgURL);
-          console.log(`Gallery image ${i + 1} uploaded:`, imgURL);
-        } else {
+        if (isBase64Image(img)) {
+          const result = await uploadBase64ToCloudinary(
+            img,
+            `fitwork/instructors/${userId}/gallery`
+          );
+          uploadedGalleryImages.push(result.secure_url);
+          console.log(`Gallery image ${i + 1} uploaded:`, result.secure_url);
+        } else if (isCloudinaryUrl(img) || img.startsWith("http")) {
           // Already a URL, keep it
           uploadedGalleryImages.push(img);
         }
@@ -70,8 +75,8 @@ async function uploadProfileImages(
 
     return updatedProfile;
   } catch (error) {
-    console.error("Error uploading images:", error);
-    throw new Error("Failed to upload images");
+    console.error("Error uploading images to Cloudinary:", error);
+    throw new Error("Failed to upload images. Please check your Cloudinary configuration.");
   }
 }
 
@@ -205,7 +210,33 @@ export async function getInstructorProfile(userId: string): Promise<Profile | nu
     const profileSnapshot = await getDoc(profileRef);
 
     if (profileSnapshot.exists()) {
-      return profileSnapshot.data() as Profile;
+      const profileData = profileSnapshot.data() as Profile;
+      
+      // Also get user data from "users" collection to get the auth email
+      const userRef = doc(db, "users", userId);
+      const userSnapshot = await getDoc(userRef);
+      
+      let authEmail = profileData.email;
+      let userName = profileData.full_name;
+      
+      if (userSnapshot.exists()) {
+        const userData = userSnapshot.data();
+        // Use auth email if available
+        if (userData.email) {
+          authEmail = userData.email;
+        }
+        // Use user's full name as fallback
+        if (!userName && userData.full_name) {
+          userName = userData.full_name;
+        }
+      }
+      
+      return {
+        ...profileData,
+        id: userId,
+        email: authEmail,
+        full_name: userName || profileData.full_name,
+      };
     }
     return null;
   } catch (error) {
@@ -226,10 +257,53 @@ export async function getSubmittedProfiles(): Promise<Profile[]> {
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => doc.data() as Profile);
+    return querySnapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id } as Profile));
   } catch (error) {
     console.error("Error fetching profiles:", error);
     throw new Error("Failed to fetch profiles");
+  }
+}
+
+/**
+ * Check if instructor has a completed/submitted profile
+ * @param userId - The user's Firebase UID
+ * @returns Object with hasProfile and profile status
+ */
+export async function checkInstructorProfileStatus(userId: string): Promise<{
+  hasProfile: boolean;
+  isSubmitted: boolean;
+  isDraft: boolean;
+  profile: Profile | null;
+}> {
+  try {
+    const profileRef = doc(db, "instructors", userId);
+    const profileSnapshot = await getDoc(profileRef);
+
+    if (!profileSnapshot.exists()) {
+      return {
+        hasProfile: false,
+        isSubmitted: false,
+        isDraft: false,
+        profile: null,
+      };
+    }
+
+    const profileData = { ...profileSnapshot.data(), id: profileSnapshot.id } as ProfileDraft;
+    
+    return {
+      hasProfile: true,
+      isSubmitted: profileData.status === "submitted",
+      isDraft: profileData.status === "draft",
+      profile: profileData,
+    };
+  } catch (error) {
+    console.error("Error checking profile status:", error);
+    return {
+      hasProfile: false,
+      isSubmitted: false,
+      isDraft: false,
+      profile: null,
+    };
   }
 }
 

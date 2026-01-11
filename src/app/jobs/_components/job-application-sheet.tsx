@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -8,19 +8,31 @@ import {
   SheetFooter,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { JobWithStudio } from "@/types";
+import { JobWithStudio, ApplicationStatus } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   X,
   Share2,
   Bookmark,
+  BookmarkCheck,
   MapPin,
   Clock,
   Timer,
   Users,
   Check,
+  Loader2,
+  CheckCircle,
 } from "lucide-react";
 import Image from "next/image";
+import { useAuth } from '@/store/firebase-auth-provider';
+import { 
+  applyToJob, 
+  getApplicationStatus, 
+  saveJob, 
+  unsaveJob, 
+  isJobSaved,
+  withdrawApplication 
+} from "@/services/jobService";
 
 interface JobApplicationSheetProps {
   job: JobWithStudio;
@@ -33,8 +45,91 @@ export default function JobApplicationSheet({
   isOpen,
   onOpenChange,
 }: JobApplicationSheetProps) {
+  const { user } = useAuth();
+  const [isApplying, setIsApplying] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<ApplicationStatus>({ hasApplied: false });
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
   const matchPercentage = Math.floor(Math.random() * (98 - 85 + 1) + 85);
   const logoUrl = job.studio?.images?.[0];
+
+  // Check application status and saved status when sheet opens
+  useEffect(() => {
+    if (isOpen && user) {
+      checkStatus();
+    }
+  }, [isOpen, user, job.id]);
+
+  const checkStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const [appStatus, savedStatus] = await Promise.all([
+        getApplicationStatus(job.id, user.uid),
+        isJobSaved(user.uid, job.id)
+      ]);
+      setApplicationStatus(appStatus);
+      setIsSaved(savedStatus);
+    } catch (err) {
+      console.error("Error checking status:", err);
+    }
+  };
+
+  const handleApply = async () => {
+    if (!user) {
+      setError("Please sign in to apply");
+      return;
+    }
+
+    try {
+      setIsApplying(true);
+      setError(null);
+      await applyToJob(job.id, user.uid);
+      setApplicationStatus({ hasApplied: true, status: "pending" });
+    } catch (err: any) {
+      setError(err.message || "Failed to apply");
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleSaveToggle = async () => {
+    if (!user) {
+      setError("Please sign in to save jobs");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      if (isSaved) {
+        await unsaveJob(user.uid, job.id);
+        setIsSaved(false);
+      } else {
+        await saveJob(user.uid, job.id);
+        setIsSaved(true);
+      }
+    } catch (err) {
+      console.error("Error saving job:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!applicationStatus.applicationId) return;
+    
+    try {
+      setIsApplying(true);
+      await withdrawApplication(applicationStatus.applicationId);
+      setApplicationStatus({ hasApplied: false });
+    } catch (err) {
+      console.error("Error withdrawing application:", err);
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -52,11 +147,19 @@ export default function JobApplicationSheet({
               <X className="w-5 h-5 text-slate-400 group-hover:text-primary dark:text-gray-400 dark:group-hover:text-white transition-colors" />
             </button>
             <div className="flex gap-2">
-              <button className="p-2 text-slate-400 hover:text-primary dark:hover:text-white transition-colors">
-                <Share2 className="w-5 h-5" />
+              <button 
+                onClick={handleSaveToggle}
+                disabled={isSaving}
+                className="p-2 text-slate-400 hover:text-primary dark:hover:text-white transition-colors"
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="w-5 h-5 text-green-600" />
+                ) : (
+                  <Bookmark className="w-5 h-5" />
+                )}
               </button>
               <button className="p-2 text-slate-400 hover:text-primary dark:hover:text-white transition-colors">
-                <Bookmark className="w-5 h-5" />
+                <Share2 className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -215,16 +318,59 @@ export default function JobApplicationSheet({
         {/* Footer */}
         <SheetFooter className="border-t border-slate-100 dark:border-gray-800 bg-white dark:bg-[#152a1c] px-6 py-6">
           <div className="w-full space-y-4">
-            <p className="text-xs text-slate-400 dark:text-gray-400 text-center">
-              By applying, you agree to the studio's terms and conditions.
-            </p>
-            <Button className="w-full h-12 bg-green-600 hover:bg-green-700 active:scale-[0.99] transition-all rounded-lg text-white font-bold flex items-center justify-center gap-2">
-              <span>1-Click Apply</span>
-              <span>→</span>
-            </Button>
-            <p className="text-xs text-slate-400 dark:text-gray-500 text-center font-medium">
-              ⚡️ Average response time: 2 hours
-            </p>
+            {error && (
+              <p className="text-xs text-red-500 text-center">{error}</p>
+            )}
+            
+            {applicationStatus.hasApplied ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 py-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <span className="text-green-700 dark:text-green-400 font-medium">
+                    {applicationStatus.status === "pending" && "Application Submitted"}
+                    {applicationStatus.status === "accepted" && "Application Accepted! 🎉"}
+                    {applicationStatus.status === "rejected" && "Application Not Selected"}
+                    {applicationStatus.status === "invited" && "You've Been Invited!"}
+                  </span>
+                </div>
+                {applicationStatus.status === "pending" && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleWithdraw}
+                    disabled={isApplying}
+                  >
+                    {isApplying ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    Withdraw Application
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-slate-400 dark:text-gray-400 text-center">
+                  By applying, you agree to the studio's terms and conditions.
+                </p>
+                <Button 
+                  className="w-full h-12 bg-green-600 hover:bg-green-700 active:scale-[0.99] transition-all rounded-lg text-white font-bold flex items-center justify-center gap-2"
+                  onClick={handleApply}
+                  disabled={isApplying || !user}
+                >
+                  {isApplying ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <span>{user ? "1-Click Apply" : "Sign in to Apply"}</span>
+                      <span>→</span>
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-slate-400 dark:text-gray-500 text-center font-medium">
+                  ⚡️ Average response time: 2 hours
+                </p>
+              </>
+            )}
           </div>
         </SheetFooter>
       </SheetContent>

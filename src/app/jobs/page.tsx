@@ -15,13 +15,13 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Map,
   SortAsc,
   Zap,
-  CheckCircle,
   X,
+  Briefcase,
+  RefreshCw,
 } from "lucide-react";
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DropdownMenu,
@@ -34,7 +34,8 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { JobWithStudio } from "@/types";
 import JobCard from "./_components/job-card";
-import { jobs } from "@/data";
+import { getJobs, subscribeToJobs } from "@/services/jobService";
+import { useAuth } from '@/store/firebase-auth-provider';
 
 const extractLocationCity = (address: string): string => {
   if (!address) return "";
@@ -97,8 +98,9 @@ interface FilterState {
 
 function JobListingContent() {
   const searchParams = useSearchParams();
-  // const [allJobs, setAllJobs] = useState<JobWithStudio[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  const [allJobs, setAllJobs] = useState<JobWithStudio[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const jobsPerPage = 10;
@@ -118,6 +120,57 @@ function JobListingContent() {
   });
 
   const [availableLocations, setAvailableLocations] = useState<string[]>([]);
+
+  // Load jobs from Firebase
+  const loadJobs = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const { jobs } = await getJobs({
+        status: "open",
+        sortBy: filters.sortBy === "oldest" ? "oldest" : "latest",
+      });
+      
+      setAllJobs(jobs);
+
+      // Extract unique locations
+      const locations = jobs
+        .map((job) =>
+          job.studio?.location
+            ? extractLocationCity(job.studio.location)
+            : null
+        )
+        .filter((location): location is string => !!location)
+        .reduce((unique: string[], location) => {
+          if (!unique.includes(location)) {
+            unique.push(location);
+          }
+          return unique;
+        }, [])
+        .sort();
+
+      setAvailableLocations(locations);
+    } catch (err) {
+      console.error("Error loading jobs:", err);
+      setError("Failed to load jobs. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters.sortBy]);
+
+  // Initial load and subscribe to real-time updates
+  useEffect(() => {
+    loadJobs();
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToJobs((jobs) => {
+      setAllJobs(jobs);
+      setIsLoading(false);
+    }, { status: "open" });
+
+    return () => unsubscribe();
+  }, [loadJobs]);
 
   useEffect(() => {
     const newFilters: Partial<FilterState> = {};
@@ -149,161 +202,132 @@ function JobListingContent() {
     }
   }, [categoryFromUrl, locationFromUrl, searchFromUrl]);
 
-  // useEffect(() => {
-  //   const loadJobs = async () => {
-  //     try {
-  //       setIsLoading(true);
-  //       const jobsData = await fetchJobsWithUser();
-  //       setAllJobs(jobsData);
+  // Filter and sort jobs client-side
+  const filteredAndSortedJobs = useMemo(() => {
+    let filtered = allJobs.filter((job) => {
+      // Search term filter
+      if (filters.searchTerm) {
+        const searchTerm = filters.searchTerm.toLowerCase();
+        const searchableText = [
+          job.position,
+          job.description,
+          ...(job.styles || []),
+          job?.studio?.name || "",
+        ]
+          .join(" ")
+          .toLowerCase();
 
-  //       const locations = jobsData
-  //         .map((job) =>
-  //           job.studio?.location
-  //             ? extractLocationCity(job.studio.location)
-  //             : null
-  //         )
-  //         .filter((location): location is string => !!location)
-  //         .reduce((unique: string[], location) => {
-  //           if (!unique.includes(location)) {
-  //             unique.push(location);
-  //           }
-  //           return unique;
-  //         }, [])
-  //         .sort();
+        if (!searchableText.includes(searchTerm)) {
+          return false;
+        }
+      }
 
-  //       setAvailableLocations(locations);
-  //     } catch (err) {
-  //       console.error("Error loading jobs:", err);
-  //       setError("Failed to load jobs. Please try again later.");
-  //     } finally {
-  //       setIsLoading(false);
-  //     }
-  //   };
+      // Location filter
+      if (filters.location && filters.location !== "all") {
+        const jobLocation = job.studio?.location
+          ? extractLocationCity(job.studio.location)
+          : "";
+        if (
+          !jobLocation.toLowerCase().includes(filters.location.toLowerCase())
+        ) {
+          return false;
+        }
+      }
 
-  //   loadJobs();
-  // }, [fetchJobsWithUser]);
+      // Category/Style filter
+      if (filters.selectedCategories.length > 0) {
+        const hasMatchingCategory = filters.selectedCategories.some(
+          (category) =>
+            job.styles.some(
+              (style) =>
+                style.toLowerCase().includes(category.toLowerCase()) ||
+                category.toLowerCase().includes(style.toLowerCase())
+            )
+        );
+        if (!hasMatchingCategory) return false;
+      }
 
-  // const filteredAndSortedJobs = useMemo(() => {
-  //   let filtered = jobs.filter((job) => {
-  //     if (filters.searchTerm) {
-  //       const searchTerm = filters.searchTerm.toLowerCase();
-  //       const searchableText = [
-  //         job.position,
-  //         job.description,
-  //         ...(job.styles || []),
-  //         job?.studio?.name || "",
-  //       ]
-  //         .join(" ")
-  //         .toLowerCase();
+      // Date posted filter
+      if (filters.selectedDatePosted && filters.selectedDatePosted !== "all") {
+        const jobDate = new Date(job.created_at);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - jobDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  //       if (!searchableText.includes(searchTerm)) {
-  //         return false;
-  //       }
-  //     }
+        switch (filters.selectedDatePosted) {
+          case "last-24h":
+            if (diffDays > 1) return false;
+            break;
+          case "last-7d":
+            if (diffDays > 7) return false;
+            break;
+          case "last-30d":
+            if (diffDays > 30) return false;
+            break;
+        }
+      }
 
-  //     if (filters.location && filters.location !== "all") {
-  //       const jobLocation = job.studio?.location
-  //         ? extractLocationCity(job.studio.location)
-  //         : "";
-  //       if (
-  //         !jobLocation.toLowerCase().includes(filters.location.toLowerCase())
-  //       ) {
-  //         return false;
-  //       }
-  //     }
+      // Urgent only filter
+      if (filters.urgentOnly) {
+        const jobDate = new Date(job.created_at);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - jobDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays > 1) return false;
+      }
 
-  //     if (filters.selectedCategories.length > 0) {
-  //       const hasMatchingCategory = filters.selectedCategories.some(
-  //         (category) =>
-  //           job.styles.some(
-  //             (style) =>
-  //               style.toLowerCase().includes(category.toLowerCase()) ||
-  //               category.toLowerCase().includes(style.toLowerCase())
-  //           )
-  //       );
-  //       if (!hasMatchingCategory) return false;
-  //     }
+      // Salary range filter
+      const compensation = parseInt(job.compensation.replace(/[^\d]/g, ""));
+      if (
+        compensation &&
+        (compensation < filters.salaryRange[0] ||
+          compensation > filters.salaryRange[1])
+      ) {
+        return false;
+      }
 
-  //     if (filters.selectedDatePosted && filters.selectedDatePosted !== "all") {
-  //       const jobDate = new Date(job.created_at);
-  //       const now = new Date();
-  //       const diffTime = Math.abs(now.getTime() - jobDate.getTime());
-  //       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return true;
+    });
 
-  //       switch (filters.selectedDatePosted) {
-  //         case "last-24h":
-  //           if (diffDays > 1) return false;
-  //           break;
-  //         case "last-7d":
-  //           if (diffDays > 7) return false;
-  //           break;
-  //         case "last-30d":
-  //           if (diffDays > 30) return false;
-  //           break;
-  //       }
-  //     }
+    // Sort
+    switch (filters.sortBy) {
+      case "oldest":
+        filtered.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        break;
+      case "compensation-high":
+        filtered.sort((a, b) => {
+          const aComp = parseInt(a.compensation.replace(/[^\d]/g, "")) || 0;
+          const bComp = parseInt(b.compensation.replace(/[^\d]/g, "")) || 0;
+          return bComp - aComp;
+        });
+        break;
+      case "compensation-low":
+        filtered.sort((a, b) => {
+          const aComp = parseInt(a.compensation.replace(/[^\d]/g, "")) || 0;
+          const bComp = parseInt(b.compensation.replace(/[^\d]/g, "")) || 0;
+          return aComp - bComp;
+        });
+        break;
+      case "latest":
+      default:
+        filtered.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        break;
+    }
 
-  //     if (filters.urgentOnly) {
-  //       const jobDate = new Date(job.created_at);
-  //       const now = new Date();
-  //       const diffTime = Math.abs(now.getTime() - jobDate.getTime());
-  //       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  //       if (diffDays > 1) return false;
-  //     }
+    return filtered;
+  }, [allJobs, filters]);
 
-  //     const compensation = parseInt(job.compensation.replace(/[^\d]/g, ""));
-  //     if (
-  //       compensation &&
-  //       (compensation < filters.salaryRange[0] ||
-  //         compensation > filters.salaryRange[1])
-  //     ) {
-  //       return false;
-  //     }
-
-  //     return true;
-  //   });
-
-  //   switch (filters.sortBy) {
-  //     case "oldest":
-  //       filtered.sort(
-  //         (a, b) =>
-  //           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  //       );
-  //       break;
-  //     case "compensation-high":
-  //       filtered.sort((a, b) => {
-  //         const aComp = parseInt(a.compensation.replace(/[^\d]/g, "")) || 0;
-  //         const bComp = parseInt(b.compensation.replace(/[^\d]/g, "")) || 0;
-  //         return bComp - aComp;
-  //       });
-  //       break;
-  //     case "compensation-low":
-  //       filtered.sort((a, b) => {
-  //         const aComp = parseInt(a.compensation.replace(/[^\d]/g, "")) || 0;
-  //         const bComp = parseInt(b.compensation.replace(/[^\d]/g, "")) || 0;
-  //         return aComp - bComp;
-  //       });
-  //       break;
-  //     case "latest":
-  //     default:
-  //       filtered.sort(
-  //         (a, b) =>
-  //           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  //       );
-  //       break;
-  //   }
-
-  //   return filtered;
-  // }, [jobs, filters]);
-
-  const totalJobs = jobs.length;
+  const totalJobs = filteredAndSortedJobs.length;
   const totalPages = Math.ceil(totalJobs / jobsPerPage);
   const indexOfLastJob = currentPage * jobsPerPage;
   const indexOfFirstJob = indexOfLastJob - jobsPerPage;
-  const currentJobs = jobs.slice(
-    indexOfFirstJob,
-    indexOfLastJob
-  );
+  const currentJobs = filteredAndSortedJobs.slice(indexOfFirstJob, indexOfLastJob);
 
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber);
@@ -374,7 +398,7 @@ function JobListingContent() {
     filters.salaryRange[1] !== 1000;
 
   return (
-    <div className="w-full bg=[#F9FAFC] ">
+    <div className="w-full bg-[#F9FAFC] dark:bg-background-dark">
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-120px)]">
           {/* Main Content - Scrollable */}
@@ -386,10 +410,20 @@ function JobListingContent() {
                   Find your next gig
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 font-normal">
-                  {totalJobs} opportunities
+                  {totalJobs} {totalJobs === 1 ? "opportunity" : "opportunities"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadJobs}
+                  disabled={isLoading}
+                  className="h-9"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
                 <Select value={filters.sortBy} onValueChange={handleSortChange}>
                   <SelectTrigger className="w-auto bg-white dark:bg-[#1a2c35] border-gray-200 dark:border-gray-700">
                     <SortAsc className="w-5 h-5 mr-2" />
@@ -405,8 +439,20 @@ function JobListingContent() {
               </div>
             </div>
 
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search jobs, studios, styles..."
+                value={filters.searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-10 h-11 bg-white dark:bg-[#1a2c35] border-gray-200 dark:border-gray-700"
+              />
+            </div>
+
             {/* Filter Dropdowns Bar */}
-            <div className="sticky top-0 z-40 -mx-4 px-4 sm:mx-0 sm:px-0 py-3 bg-background-light dark:bg-background-dark/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 z-40 -mx-4 px-4 sm:mx-0 sm:px-0 py-3 bg-[#F9FAFC] dark:bg-background-dark/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
               <div className="flex gap-3 overflow-x-auto pb-3">
                 {/* Urgent Only Dropdown */}
                 <DropdownMenu>
@@ -418,6 +464,7 @@ function JobListingContent() {
                           : "bg-white dark:bg-[#1a2c35] border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white hover:border-green-600/50"
                       }`}
                     >
+                      <Zap className="w-4 h-4" />
                       <span className="text-sm font-medium whitespace-nowrap">
                         Urgent only
                       </span>
@@ -431,6 +478,38 @@ function JobListingContent() {
                     >
                       Show only urgent jobs
                     </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Location Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="group flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-[#1a2c35] border border-gray-200 dark:border-gray-700 pl-4 pr-3 hover:border-green-600/50 transition-all shadow-sm text-gray-900 dark:text-white">
+                      <MapPin className="w-4 h-4" />
+                      <span className="text-sm font-medium whitespace-nowrap">
+                        {filters.location || "Location"}
+                      </span>
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
+                    <DropdownMenuLabel>Select Location</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={!filters.location}
+                      onCheckedChange={() => setFilters(prev => ({ ...prev, location: "" }))}
+                    >
+                      All Locations
+                    </DropdownMenuCheckboxItem>
+                    {availableLocations.map((location) => (
+                      <DropdownMenuCheckboxItem
+                        key={location}
+                        checked={filters.location === location}
+                        onCheckedChange={() => setFilters(prev => ({ ...prev, location }))}
+                      >
+                        {location}
+                      </DropdownMenuCheckboxItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -468,7 +547,7 @@ function JobListingContent() {
                   <DropdownMenuTrigger asChild>
                     <button className="group flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-[#1a2c35] border border-gray-200 dark:border-gray-700 pl-4 pr-3 hover:border-green-600/50 transition-all shadow-sm text-gray-900 dark:text-white">
                       <span className="text-sm font-medium whitespace-nowrap">
-                        Date & Time
+                        Date Posted
                       </span>
                       <ChevronDown className="w-4 h-4" />
                     </button>
@@ -539,6 +618,28 @@ function JobListingContent() {
               {/* Active Filters Display */}
               {hasActiveFilters && (
                 <div className="flex flex-wrap gap-2 mt-3">
+                  {filters.searchTerm && (
+                    <span className="flex items-center gap-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-lg text-xs font-medium">
+                      Search: {filters.searchTerm}
+                      <button
+                        onClick={() => handleSearchChange("")}
+                        className="ml-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.location && (
+                    <span className="flex items-center gap-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-lg text-xs font-medium">
+                      {filters.location}
+                      <button
+                        onClick={() => setFilters(prev => ({ ...prev, location: "" }))}
+                        className="ml-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
                   {filters.urgentOnly && (
                     <span className="flex items-center gap-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-lg text-xs font-medium">
                       Urgent Only
@@ -597,28 +698,42 @@ function JobListingContent() {
 
             {/* Job Listings */}
             {isLoading ? (
-              <div className="flex justify-center items-center h-64">
+              <div className="flex flex-col justify-center items-center h-64 gap-4">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600"></div>
+                <p className="text-gray-500 dark:text-gray-400">Loading jobs...</p>
               </div>
             ) : error ? (
-              <div className="text-red-500 text-center">{error}</div>
+              <div className="flex flex-col items-center justify-center h-64 gap-4">
+                <p className="text-red-500 text-center">{error}</p>
+                <Button onClick={loadJobs} variant="outline">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Try Again
+                </Button>
+              </div>
             ) : (
               <>
                 <div className="flex flex-col gap-4">
                   {currentJobs.length > 0 ? (
                     currentJobs.map((job) => <JobCard key={job.id} job={job} />)
                   ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500 dark:text-gray-400 text-lg">
-                        No jobs found matching your filters.
+                    <div className="text-center py-12 bg-white dark:bg-[#1a2c35] rounded-xl border border-gray-200 dark:border-gray-700">
+                      <Briefcase className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        No jobs found
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400 mb-4">
+                        {hasActiveFilters
+                          ? "No jobs match your filters. Try adjusting your criteria."
+                          : "No jobs are currently posted. Check back soon!"}
                       </p>
-                      <Button
-                        variant="outline"
-                        onClick={clearAllFilters}
-                        className="mt-4"
-                      >
-                        Clear all filters
-                      </Button>
+                      {hasActiveFilters && (
+                        <Button
+                          variant="outline"
+                          onClick={clearAllFilters}
+                        >
+                          Clear all filters
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -682,7 +797,7 @@ function JobListingContent() {
             )}
           </div>
 
-          {/* Sidebar - Map and Profile Strength - Hidden on mobile, Scrollable */}
+          {/* Sidebar - Map and Profile Strength - Hidden on mobile */}
           <div className="hidden lg:flex w-80 shrink-0 flex-col gap-6 overflow-y-auto">
             {/* Location Map */}
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a2c35] overflow-hidden shadow-sm">
@@ -691,7 +806,7 @@ function JobListingContent() {
                   Suggested Location
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {filters.location || "Select a location"}
+                  {filters.location || "All locations"}
                 </p>
               </div>
               <div className="aspect-square w-full bg-gray-100 bg-cover bg-center relative group cursor-pointer">
@@ -708,55 +823,90 @@ function JobListingContent() {
               </div>
             </div>
 
-            {/* Profile Strength */}
+            {/* Quick Stats */}
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a2c35] p-5 shadow-sm">
               <h3 className="font-bold text-gray-900 dark:text-white mb-4">
-                Your Profile Strength
+                Job Statistics
               </h3>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative size-12 shrink-0">
-                  <svg
-                    className="size-full -rotate-90"
-                    viewBox="0 0 36 36"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      className="stroke-gray-200 dark:stroke-gray-700"
-                      cx="18"
-                      cy="18"
-                      fill="none"
-                      r="16"
-                      strokeWidth="3"
-                    ></circle>
-                    <circle
-                      className="stroke-green-600"
-                      cx="18"
-                      cy="18"
-                      fill="none"
-                      r="16"
-                      strokeDasharray="100"
-                      strokeDashoffset="15"
-                      strokeLinecap="round"
-                      strokeWidth="3"
-                    ></circle>
-                  </svg>
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-green-600">
-                    85%
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    Keep it up!
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Total Open Positions
                   </span>
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
-                    Add more certifications to match with more gigs.
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
+                    {allJobs.length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Matching Filters
+                  </span>
+                  <span className="text-sm font-bold text-green-600">
+                    {totalJobs}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Unique Locations
+                  </span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
+                    {availableLocations.length}
                   </span>
                 </div>
               </div>
-              <button className="w-full h-8 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#253842] dark:text-white transition-colors">
-                Update Profile
-              </button>
             </div>
+
+            {/* Profile Strength */}
+            {user && (
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a2c35] p-5 shadow-sm">
+                <h3 className="font-bold text-gray-900 dark:text-white mb-4">
+                  Your Profile Strength
+                </h3>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="relative size-12 shrink-0">
+                    <svg
+                      className="size-full -rotate-90"
+                      viewBox="0 0 36 36"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <circle
+                        className="stroke-gray-200 dark:stroke-gray-700"
+                        cx="18"
+                        cy="18"
+                        fill="none"
+                        r="16"
+                        strokeWidth="3"
+                      ></circle>
+                      <circle
+                        className="stroke-green-600"
+                        cx="18"
+                        cy="18"
+                        fill="none"
+                        r="16"
+                        strokeDasharray="100"
+                        strokeDashoffset="15"
+                        strokeLinecap="round"
+                        strokeWidth="3"
+                      ></circle>
+                    </svg>
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-xs font-bold text-green-600">
+                      85%
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      Keep it up!
+                    </span>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      Add more certifications to match with more gigs.
+                    </span>
+                  </div>
+                </div>
+                <button className="w-full h-8 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#253842] dark:text-white transition-colors">
+                  Update Profile
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -767,7 +917,7 @@ function JobListingContent() {
 function JobListingLoadingFallback() {
   return (
     <div className="w-full bg-background-light dark:bg-background-dark">
-      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600"></div>
         </div>

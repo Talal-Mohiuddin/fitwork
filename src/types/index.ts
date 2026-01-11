@@ -90,10 +90,13 @@ export interface Profile {
   experience?: Experience[];
   certification_details?: Certification[];
   years_of_experience?: number;
+  experience_years?: number;
   classes_taught?: number;
   gallery_images?: string[];
   hourly_rate?: number;
   class_rate?: string;
+  available?: boolean;
+  video_url?: string;
 }
 
 export interface Job {
@@ -107,8 +110,9 @@ export interface Job {
   compensation: string;
   styles: string[];
   created_at: string;
-
   status: "open" | "closed";
+  urgent?: boolean;
+  location?: string;
 }
 
 export interface JobApplication {
@@ -116,7 +120,7 @@ export interface JobApplication {
   job_id: string;
   applicant_id: string;
   applied_at: string;
-  status: "pending" | "accepted" | "rejected" | "invited";
+  status: "pending" | "accepted" | "rejected" | "invited" | "shortlisted" | "offered" | "withdrawn";
   message?: string;
   type?: "invite" | "apply";
 }
@@ -129,7 +133,7 @@ export interface JobApplicationWithDetails extends JobApplication {
 export interface ApplicationStatus {
   hasApplied: boolean;
   applicationId?: string;
-  status?: "pending" | "accepted" | "rejected" | "invited";
+  status?: "pending" | "accepted" | "rejected" | "invited" | "shortlisted" | "offered" | "withdrawn";
 }
 
 export interface JobWithStudio extends Job {

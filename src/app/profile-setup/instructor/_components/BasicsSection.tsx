@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Camera, MapPin, Instagram, User, AtSign, Phone, Calendar, MapPinned, Briefcase } from 'lucide-react';
+import { Camera, MapPin, Instagram, User, AtSign, Phone, Calendar, MapPinned, Briefcase, Loader2, CheckCircle } from 'lucide-react';
 import { Profile } from '@/types';
+import { uploadToCloudinary, isCloudinaryUrl } from '@/lib/cloudinary';
 
 interface BasicsSectionProps {
   profile: Partial<Profile>;
@@ -70,17 +71,38 @@ const FITNESS_STYLES = {
 
 export default function BasicsSection({ profile, onChange }: BasicsSectionProps) {
   const [photoPreview, setPhotoPreview] = useState(profile.profile_photo || '');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Update photo preview when profile changes (e.g., when loading existing data)
+  React.useEffect(() => {
+    if (profile.profile_photo && profile.profile_photo !== photoPreview) {
+      setPhotoPreview(profile.profile_photo);
+    }
+  }, [profile.profile_photo]);
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.size <= 5 * 1024 * 1024) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const preview = event.target?.result as string;
-        setPhotoPreview(preview);
-        onChange({ profile_photo: preview });
-      };
-      reader.readAsDataURL(file);
+      setIsUploading(true);
+      setUploadStatus("Uploading profile photo...");
+      
+      try {
+        // Upload to Cloudinary
+        const result = await uploadToCloudinary(file, "fitwork/instructors/profiles");
+        setPhotoPreview(result.secure_url);
+        onChange({ profile_photo: result.secure_url });
+        setUploadStatus("Profile photo uploaded!");
+        setTimeout(() => setUploadStatus(null), 2000);
+      } catch (error) {
+        console.error("Profile photo upload error:", error);
+        setUploadStatus("Failed to upload photo. Please try again.");
+        setTimeout(() => setUploadStatus(null), 3000);
+      } finally {
+        setIsUploading(false);
+      }
+    } else if (file) {
+      alert("Image file is too large. Maximum size is 5MB.");
     }
   };
 
@@ -114,6 +136,34 @@ export default function BasicsSection({ profile, onChange }: BasicsSectionProps)
     return age;
   };
 
+  // Helper function to safely format date for input field
+  const formatDateForInput = (dateValue: any): string => {
+    if (!dateValue) return '';
+
+    try {
+      // Handle Firestore Timestamp
+      if (dateValue && typeof dateValue === 'object' && dateValue.toDate) {
+        return dateValue.toDate().toISOString().split('T')[0];
+      }
+
+      // Handle Date object
+      if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+        return dateValue.toISOString().split('T')[0];
+      }
+
+      // Handle string date
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+
+      return '';
+    } catch (error) {
+      console.warn('Invalid date value:', dateValue);
+      return '';
+    }
+  };
+
   const firstName = profile.full_name?.split(' ')[0] || '';
   const lastName = profile.full_name?.split(' ').slice(1).join(' ') || '';
 
@@ -130,10 +180,33 @@ export default function BasicsSection({ profile, onChange }: BasicsSectionProps)
         {/* Profile Photo */}
         <div className="pb-8 border-b border-slate-100 dark:border-slate-800">
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 block">Profile Photo</label>
+          
+          {/* Upload Status */}
+          {uploadStatus && (
+            <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-sm ${
+              uploadStatus.includes("uploaded") 
+                ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" 
+                : uploadStatus.includes("Failed")
+                ? "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+            }`}>
+              {uploadStatus.includes("uploaded") ? (
+                <CheckCircle size={16} />
+              ) : uploadStatus.includes("Failed") ? null : (
+                <Loader2 size={16} className="animate-spin" />
+              )}
+              <span>{uploadStatus}</span>
+            </div>
+          )}
+          
           <div className="flex items-center gap-6">
             <div className="relative group cursor-pointer">
               <div className="h-24 w-24 overflow-hidden rounded-2xl border-4 border-emerald-100 dark:border-emerald-900/50 bg-slate-100 dark:bg-slate-800 shadow-lg">
-                {photoPreview ? (
+                {isUploading ? (
+                  <div className="h-full w-full flex items-center justify-center">
+                    <Loader2 size={32} className="text-emerald-500 animate-spin" />
+                  </div>
+                ) : photoPreview ? (
                   <div 
                     className="h-full w-full bg-cover bg-center transition-transform group-hover:scale-105"
                     style={{ backgroundImage: `url(${photoPreview})` }}
@@ -146,7 +219,7 @@ export default function BasicsSection({ profile, onChange }: BasicsSectionProps)
               </div>
               <label 
                 htmlFor="photo-upload" 
-                className="absolute -bottom-2 -right-2 h-10 w-10 rounded-full bg-emerald-500 border-4 border-white dark:border-slate-900 flex items-center justify-center text-white shadow-lg cursor-pointer hover:bg-emerald-600 transition-colors"
+                className={`absolute -bottom-2 -right-2 h-10 w-10 rounded-full bg-emerald-500 border-4 border-white dark:border-slate-900 flex items-center justify-center text-white shadow-lg cursor-pointer hover:bg-emerald-600 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
               >
                 <Camera size={16} />
               </label>
@@ -156,11 +229,12 @@ export default function BasicsSection({ profile, onChange }: BasicsSectionProps)
                 accept="image/*"
                 onChange={handlePhotoChange}
                 className="hidden"
+                disabled={isUploading}
               />
             </div>
             <div>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Upload a professional photo for your profile</p>
-              <p className="text-xs text-slate-500 mt-1">Max 5MB • JPG, PNG</p>
+              <p className="text-xs text-slate-500 mt-1">Max 5MB • JPG, PNG • Uploaded to cloud</p>
             </div>
           </div>
         </div>
@@ -244,7 +318,7 @@ export default function BasicsSection({ profile, onChange }: BasicsSectionProps)
             <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="date"
-              value={profile.date_of_birth ? new Date(profile.date_of_birth).toISOString().split('T')[0] : ''}
+              value={formatDateForInput(profile.date_of_birth)}
               onChange={(e) => {
                 const selectedDate = new Date(e.target.value);
                 const age = calculateAge(selectedDate);

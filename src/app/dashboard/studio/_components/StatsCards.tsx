@@ -1,5 +1,8 @@
-import React from 'react';
-import { AlertCircle, Users, Dumbbell } from 'lucide-react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, Users, Dumbbell, Loader2 } from 'lucide-react';
+import { getStudioDashboardStats } from '@/services/studioService';
 
 interface StatCard {
   title: string;
@@ -9,28 +12,88 @@ interface StatCard {
   iconBg: string;
 }
 
-export default function StatsCards() {
-  const stats: StatCard[] = [
+interface StatsCardsProps {
+  studioId?: string;
+}
+
+export default function StatsCards({ studioId }: StatsCardsProps) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<StatCard[]>([
     {
       title: 'Open Gigs',
-      value: 2,
-      change: '+2 today',
+      value: 0,
       icon: <AlertCircle size={20} />,
       iconBg: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
     },
     {
       title: 'New Applicants',
-      value: 5,
+      value: 0,
       icon: <Users size={20} />,
       iconBg: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
     },
     {
-      title: 'Active Classes',
-      value: 12,
+      title: 'Your Bench',
+      value: 0,
       icon: <Dumbbell size={20} />,
       iconBg: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
     },
-  ];
+  ]);
+
+  useEffect(() => {
+    if (studioId) {
+      loadStats();
+    }
+  }, [studioId]);
+
+  const loadStats = async () => {
+    if (!studioId) return;
+    
+    try {
+      setIsLoading(true);
+      const data = await getStudioDashboardStats(studioId);
+      
+      setStats([
+        {
+          title: 'Open Gigs',
+          value: data.openJobs,
+          change: data.newJobsToday > 0 ? `+${data.newJobsToday} today` : undefined,
+          icon: <AlertCircle size={20} />,
+          iconBg: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
+        },
+        {
+          title: 'New Applicants',
+          value: data.pendingApplications,
+          icon: <Users size={20} />,
+          iconBg: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
+        },
+        {
+          title: 'Your Bench',
+          value: data.benchSize,
+          icon: <Dumbbell size={20} />,
+          iconBg: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+        },
+      ]);
+    } catch (error) {
+      console.error('Error loading studio stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="bg-surface-light dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex items-center justify-center h-32"
+          >
+            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">

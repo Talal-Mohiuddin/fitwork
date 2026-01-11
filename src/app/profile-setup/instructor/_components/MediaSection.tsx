@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Play, Plus, X, Image, Upload, Video, Sparkles, Trash2, GripVertical, Camera } from 'lucide-react';
+import { Play, Plus, X, Image, Upload, Video, Sparkles, Trash2, GripVertical, Camera, Loader2, CheckCircle } from 'lucide-react';
 import { Profile } from '@/types';
+import { uploadToCloudinary, uploadVideoToCloudinary, isBase64Image, isCloudinaryUrl } from '@/lib/cloudinary';
 
 interface MediaSectionProps {
   profile: Partial<Profile>;
@@ -9,35 +10,60 @@ interface MediaSectionProps {
 
 export default function MediaSection({ profile, onChange }: MediaSectionProps) {
   const galleryImages = profile.gallery_images || [];
-  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(profile.video_url || null);
   const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.size <= 60 * 1024 * 1024) {
       setIsVideoUploading(true);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const preview = event.target?.result as string;
-        setVideoPreview(preview);
+      setUploadProgress("Uploading video to cloud...");
+      
+      try {
+        // Upload to Cloudinary
+        const result = await uploadVideoToCloudinary(file, "fitwork/instructors/videos");
+        setVideoPreview(result.secure_url);
+        onChange({ video_url: result.secure_url });
+        setUploadProgress("Video uploaded successfully!");
+        setTimeout(() => setUploadProgress(null), 2000);
+      } catch (error) {
+        console.error("Video upload error:", error);
+        setUploadProgress("Failed to upload video. Please try again.");
+        setTimeout(() => setUploadProgress(null), 3000);
+      } finally {
         setIsVideoUploading(false);
-      };
-      reader.readAsDataURL(file);
+      }
+    } else if (file) {
+      alert("Video file is too large. Maximum size is 60MB.");
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.size <= 5 * 1024 * 1024) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const preview = event.target?.result as string;
-        onChange({ gallery_images: [...galleryImages, preview] });
-      };
-      reader.readAsDataURL(file);
+      setIsPhotoUploading(true);
+      setUploadProgress("Uploading image to cloud...");
+      
+      try {
+        // Upload to Cloudinary
+        const result = await uploadToCloudinary(file, "fitwork/instructors/gallery");
+        onChange({ gallery_images: [...galleryImages, result.secure_url] });
+        setUploadProgress("Image uploaded successfully!");
+        setTimeout(() => setUploadProgress(null), 2000);
+      } catch (error) {
+        console.error("Photo upload error:", error);
+        setUploadProgress("Failed to upload image. Please try again.");
+        setTimeout(() => setUploadProgress(null), 3000);
+      } finally {
+        setIsPhotoUploading(false);
+      }
+    } else if (file) {
+      alert("Image file is too large. Maximum size is 5MB.");
     }
   };
 
@@ -45,17 +71,28 @@ export default function MediaSection({ profile, onChange }: MediaSectionProps) {
     onChange({ gallery_images: galleryImages.filter((_, i) => i !== index) });
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const preview = event.target?.result as string;
-        onChange({ gallery_images: [...galleryImages, preview] });
-      };
-      reader.readAsDataURL(file);
+      setIsPhotoUploading(true);
+      setUploadProgress("Uploading image to cloud...");
+      
+      try {
+        const result = await uploadToCloudinary(file, "fitwork/instructors/gallery");
+        onChange({ gallery_images: [...galleryImages, result.secure_url] });
+        setUploadProgress("Image uploaded successfully!");
+        setTimeout(() => setUploadProgress(null), 2000);
+      } catch (error) {
+        console.error("Photo upload error:", error);
+        setUploadProgress("Failed to upload image. Please try again.");
+        setTimeout(() => setUploadProgress(null), 3000);
+      } finally {
+        setIsPhotoUploading(false);
+      }
+    } else if (file) {
+      alert("Please drop an image file (max 5MB).");
     }
   };
 
@@ -65,6 +102,26 @@ export default function MediaSection({ profile, onChange }: MediaSectionProps) {
         <span className="flex items-center justify-center h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 text-sm font-bold">5</span>
         Media & Visuals
       </h2>
+
+      {/* Upload Progress Notification */}
+      {uploadProgress && (
+        <div className={`mb-4 p-4 rounded-lg flex items-center gap-3 ${
+          uploadProgress.includes("success") 
+            ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" 
+            : uploadProgress.includes("Failed")
+            ? "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+            : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+        }`}>
+          {uploadProgress.includes("success") ? (
+            <CheckCircle size={18} />
+          ) : uploadProgress.includes("Failed") ? (
+            <X size={18} />
+          ) : (
+            <Loader2 size={18} className="animate-spin" />
+          )}
+          <span className="text-sm font-medium">{uploadProgress}</span>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Intro Video Section */}
@@ -88,7 +145,10 @@ export default function MediaSection({ profile, onChange }: MediaSectionProps) {
                 controls
               />
               <button
-                onClick={() => setVideoPreview(null)}
+                onClick={() => {
+                  setVideoPreview(null);
+                  onChange({ video_url: undefined });
+                }}
                 className="absolute top-3 right-3 p-2 bg-black/70 hover:bg-black text-white rounded-lg transition-colors"
                 type="button"
               >
