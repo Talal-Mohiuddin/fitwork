@@ -100,6 +100,13 @@ export async function saveProfileDraft(
       savedAt: new Date().toISOString(),
     };
 
+    // Sanitize data
+    const sanitizedData = { ...profileData };
+    Object.keys(sanitizedData).forEach(key => {
+      // @ts-ignore
+      if (sanitizedData[key] === undefined) sanitizedData[key] = null;
+    });
+
     // Check if profile exists
     const profileSnapshot = await getDoc(profileRef);
 
@@ -107,14 +114,14 @@ export async function saveProfileDraft(
       // Update existing draft
       console.log("Updating existing draft...");
       await updateDoc(profileRef, {
-        ...profileData,
+        ...sanitizedData,
         updated_at: serverTimestamp(),
       });
     } else {
       // Create new draft
       console.log("Creating new draft...");
       await setDoc(profileRef, {
-        ...profileData,
+        ...sanitizedData,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
@@ -174,6 +181,13 @@ export async function submitProfile(
       profile_completed: true,
     };
 
+    // Sanitize data
+    const sanitizedData = { ...profileData };
+    Object.keys(sanitizedData).forEach(key => {
+      // @ts-ignore
+      if (sanitizedData[key] === undefined) sanitizedData[key] = null;
+    });
+
     // Check if profile exists
     const profileSnapshot = await getDoc(profileRef);
 
@@ -181,14 +195,14 @@ export async function submitProfile(
       // Update existing profile
       console.log("Updating existing profile...");
       await updateDoc(profileRef, {
-        ...profileData,
+        ...sanitizedData,
         updated_at: serverTimestamp(),
       });
     } else {
       // Create new profile
       console.log("Creating new profile...");
       await setDoc(profileRef, {
-        ...profileData,
+        ...sanitizedData,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });

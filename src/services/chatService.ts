@@ -66,8 +66,14 @@ export async function getOrCreateConversation(
       id: conversationRef.id,
       participants,
       participantDetails: {
-        [userId1]: user1Details,
-        [userId2]: user2Details,
+        [userId1]: {
+          ...user1Details,
+          avatar: user1Details.avatar || null,
+        },
+        [userId2]: {
+          ...user2Details,
+          avatar: user2Details.avatar || null,
+        },
       },
       unreadCount: {
         [userId1]: 0,
@@ -105,6 +111,18 @@ export async function sendMessage(
   try {
     const batch = writeBatch(db);
     
+    // Sanitize optional fields in nested objects to prevent "undefined" errors
+    const sanitizedJobOffer = jobOffer ? {
+      ...jobOffer,
+      endTime: jobOffer.endTime || null,
+      classType: jobOffer.classType || null,
+    } : undefined;
+
+    const sanitizedGigInvite = gigInvite ? {
+      ...gigInvite,
+      description: gigInvite.description || null,
+    } : undefined;
+
     // Create message
     const messageRef = doc(collection(db, CONVERSATIONS_COLLECTION, conversationId, MESSAGES_COLLECTION));
     const message: Omit<ChatMessage, "id"> = {
@@ -115,8 +133,8 @@ export async function sendMessage(
       timestamp: new Date().toISOString(),
       type,
       read: false,
-      ...(jobOffer && { jobOffer }),
-      ...(gigInvite && { gigInvite }),
+      ...(sanitizedJobOffer && { jobOffer: sanitizedJobOffer }),
+      ...(sanitizedGigInvite && { gigInvite: sanitizedGigInvite }),
     };
 
     batch.set(messageRef, {

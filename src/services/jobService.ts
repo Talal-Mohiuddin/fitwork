@@ -330,7 +330,7 @@ export async function applyToJob(
     await setDoc(applicationRef, {
       ...application,
       applied_at: serverTimestamp(),
-      ...(message !== undefined && { message }),
+      message: message || null,
     });
 
     return applicationRef.id;
@@ -363,7 +363,7 @@ export async function inviteToJob(
     await setDoc(applicationRef, {
       ...application,
       applied_at: serverTimestamp(),
-      ...(message !== undefined && { message }),
+      message: message || null,
     });
 
     return applicationRef.id;
@@ -772,25 +772,25 @@ export async function createEnhancedJob(
       position: data.customClassType || data.classType,
       description: data.notes || `${data.classType} class at our studio`,
       classType: data.classType,
-      customClassType: data.customClassType,
+      customClassType: data.customClassType || null,
       
       // Schedule
       start_date: data.date,
       startTime: data.startTime,
       endTime: data.endTime,
       isRecurring: data.isRecurring,
-      recurringPattern: data.recurringPattern,
+      recurringPattern: data.recurringPattern || null,
       
       // Location
       location: data.location,
-      studioAddress: data.studioAddress,
+      studioAddress: data.studioAddress || null,
       
       // Compensation
       compensation,
       payType: data.payType,
-      payAmount: data.payAmount,
-      payMin: data.payMin,
-      payMax: data.payMax,
+      payAmount: data.payAmount || null,
+      payMin: data.payMin || null,
+      payMax: data.payMax || null,
       currency: data.currency,
       
       // Employment
@@ -801,7 +801,7 @@ export async function createEnhancedJob(
       requirements: data.certificationsRequired,
       certificationsRequired: data.certificationsRequired,
       experienceLevel: data.experienceLevel,
-      notes: data.notes,
+      notes: data.notes || null,
       
       // Status
       status: "open",

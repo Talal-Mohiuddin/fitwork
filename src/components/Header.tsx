@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Search, Users, Building, LogOut, UserCircle, Plane } from "lucide-react";
+import { Menu, X, Search, Users, Building, LogOut, UserCircle, Plane, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AuthModal from "./auth/auth-modal";
 import { useStore } from "@/store/zustand";
@@ -107,6 +107,13 @@ export default function Header() {
           
           {isLoggedIn ? (
             <>
+              <Link
+                href="/chat"
+                className="flex flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <MessageSquare className="w-6 h-6" />
+                <span className="text-sm">Chat</span>
+              </Link>
               <button
                 onClick={() => router.push(getProfileLink())}
                 className="flex flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
@@ -193,6 +200,15 @@ export default function Header() {
           <div className="border-t border-gray-200 dark:border-slate-800 py-4">
             {isLoggedIn ? (
               <>
+                <button
+                  onClick={() => {
+                    router.push("/chat");
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-gray-800 hover:text-[#21c55e]"
+                >
+                  Chat
+                </button>
                 <button
                   onClick={() => {
                     router.push(getProfileLink());

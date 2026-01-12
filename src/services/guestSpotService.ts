@@ -51,8 +51,15 @@ export async function createGuestSpot(
       created_at: new Date().toISOString(),
     };
 
+    // Sanitize guest spot data
+    const sanitizedGuestSpot = { ...guestSpot };
+    Object.keys(sanitizedGuestSpot).forEach(key => {
+      // @ts-ignore
+      if (sanitizedGuestSpot[key] === undefined) sanitizedGuestSpot[key] = null;
+    });
+
     await setDoc(guestSpotRef, {
-      ...guestSpot,
+      ...sanitizedGuestSpot,
       created_at: serverTimestamp(),
     });
 
@@ -408,14 +415,16 @@ export async function applyToGuestSpot(
       applicant_id: applicantId,
       applied_at: new Date().toISOString(),
       status: "pending",
-      message,
-      proposed_rate: proposedRate,
+      message: message || null,
+      proposed_rate: proposedRate || null,
       type: "apply",
     };
 
     await setDoc(applicationRef, {
       ...application,
       applied_at: serverTimestamp(),
+      message: message || null,
+      proposed_rate: proposedRate || null,
     });
 
     return applicationRef.id;
@@ -443,13 +452,14 @@ export async function inviteToGuestSpot(
       applicant_id: instructorId,
       applied_at: new Date().toISOString(),
       status: "invited",
-      message,
+      message: message || null,
       type: "invite",
     };
 
     await setDoc(applicationRef, {
       ...application,
       applied_at: serverTimestamp(),
+      message: message || null,
     });
 
     return applicationRef.id;

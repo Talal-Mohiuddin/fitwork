@@ -15,6 +15,8 @@ import {
   Clock,
   MessageCircle,
 } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "./stat-card";
 import { AvailabilityGrid } from "./availability-grid";
@@ -22,12 +24,21 @@ import { ExperienceTimeline } from "./experience-timeline";
 import { CertificationCard } from "./certification-card";
 import { Profile } from "@/types";
 import { getOptimizedCloudinaryUrl } from "@/lib/cloudinary";
+import InviteModal from "../../_components/InviteModal";
+import { useAuth } from "@/store/firebase-auth-provider";
+import { getOrCreateConversation } from "@/services/chatService";
+import { toast } from "sonner";
 
 interface InstructorProfileProps {
   instructor: Profile;
 }
 
 export function InstructorProfile({ instructor }: InstructorProfileProps) {
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const router = useRouter();
+  const { user, profile: currentUserProfile } = useAuth();
+  const [isMessageLoading, setIsMessageLoading] = useState(false);
+
   // Get status badge info
   const getStatusBadge = () => {
     const status = (instructor as any).status;
@@ -58,8 +69,48 @@ export function InstructorProfile({ instructor }: InstructorProfileProps) {
     return 0;
   };
 
+  const handleMessage = async () => {
+    if (!user) {
+      toast.error("Please sign in to message this instructor");
+      return;
+    }
+    
+    // Determine user types
+    const currentUserType = currentUserProfile?.user_type || "studio";
+    
+    try {
+      setIsMessageLoading(true);
+      await getOrCreateConversation(
+        user.uid,
+        instructor.id,
+        { 
+          name: currentUserProfile?.name || currentUserProfile?.full_name || "User",
+          avatar: currentUserProfile?.images?.[0] || currentUserProfile?.profile_photo,
+          userType: currentUserType as "studio" | "instructor"
+        },
+        { 
+          name: instructor.full_name || "Instructor",
+          avatar: instructor.profile_photo || instructor.images?.[0],
+          userType: "instructor"
+        }
+      );
+      
+      router.push("/chat");
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      toast.error("Failed to start conversation");
+    } finally {
+      setIsMessageLoading(false);
+    }
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+      <InviteModal 
+        isOpen={isInviteModalOpen} 
+        onClose={() => setIsInviteModalOpen(false)} 
+        instructor={instructor} 
+      />
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm mb-8">
         <a
@@ -326,12 +377,19 @@ export function InstructorProfile({ instructor }: InstructorProfileProps) {
                 </div>
               </div>
 
-              <Button className="w-full bg-green-500 hover:bg-green-600 text-white mb-3">
+              <Button 
+                onClick={() => setIsInviteModalOpen(true)}
+                className="w-full bg-green-500 hover:bg-green-600 text-white mb-3"
+              >
                 Invite to Gig
               </Button>
-              <button className="w-full text-sm font-semibold text-slate-900 dark:text-white py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-2">
+              <button 
+                onClick={handleMessage}
+                disabled={isMessageLoading}
+                className="w-full text-sm font-semibold text-slate-900 dark:text-white py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
                 <MessageCircle className="w-4 h-4" />
-                Message {instructor.full_name?.split(" ")[0]}
+                {isMessageLoading ? "Loading..." : `Message ${instructor.full_name?.split(" ")[0]}`}
               </button>
               
               {(instructor as any).status === "verified" && (
