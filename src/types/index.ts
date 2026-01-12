@@ -111,6 +111,7 @@ export interface Job {
   requirements?: string[];
   start_date: string;
   end_date?: string | null;
+  time_slot?: string;
   compensation: string;
   styles: string[];
   created_at: string;
@@ -317,4 +318,187 @@ export interface StudioProfileSetup extends Profile {
   // Status
   status?: 'draft' | 'published';
   last_saved?: string;
+}
+
+// ==================== CHAT TYPES ====================
+
+export interface Conversation {
+  id: string;
+  participants: string[]; // [studioId, instructorId]
+  participantDetails: {
+    [key: string]: {
+      name: string;
+      avatar?: string;
+      userType: mode;
+    };
+  };
+  lastMessage?: {
+    content: string;
+    senderId: string;
+    timestamp: string;
+    type: MessageType;
+  };
+  unreadCount: {
+    [key: string]: number;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export type MessageType = 'text' | 'job_offer' | 'gig_invite' | 'application_update' | 'system';
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  type: MessageType;
+  read: boolean;
+  jobOffer?: JobOfferDetails;
+  gigInvite?: GigInviteDetails;
+}
+
+export interface JobOfferDetails {
+  jobId: string;
+  title: string;
+  date: string;
+  time: string;
+  endTime?: string;
+  location: string;
+  studio: string;
+  studioId: string;
+  rate: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  classType?: string;
+}
+
+export interface GigInviteDetails {
+  jobId: string;
+  title: string;
+  description?: string;
+  date: string;
+  time: string;
+  location: string;
+  studio: string;
+  studioId: string;
+  rate: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+}
+
+// ==================== ENHANCED JOB TYPES ====================
+
+export type ClassType = 
+  | 'Spin' 
+  | 'HIIT' 
+  | 'Yoga' 
+  | 'Pilates' 
+  | 'Barre' 
+  | 'Boxing' 
+  | 'Strength' 
+  | 'Dance'
+  | 'Cycling'
+  | 'Functional'
+  | 'CrossFit'
+  | 'Swimming'
+  | 'Other';
+
+export type PayType = 'flat_fee' | 'hourly' | 'range';
+export type EmploymentStatus = 'contractor' | 'employee';
+export type CancellationPolicy = 'standard' | 'flexible' | 'strict';
+export type ExperienceLevel = 'junior' | 'established' | 'expert';
+
+export interface JobPostingData {
+  // Step 1: Class Type
+  classType: ClassType;
+  customClassType?: string;
+
+  // Step 2: Schedule & Location
+  date: string;
+  startTime: string;
+  endTime: string;
+  isRecurring: boolean;
+  recurringPattern?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
+  location: string;
+  studioAddress?: string;
+  coordinates?: { lat: number; lng: number };
+
+  // Step 3: Pay & Contract
+  payType: PayType;
+  payAmount?: number;
+  payMin?: number;
+  payMax?: number;
+  currency: string;
+  employmentStatus: EmploymentStatus;
+  cancellationPolicy: CancellationPolicy;
+
+  // Step 4: Requirements & Details
+  certificationsRequired: string[];
+  experienceLevel: ExperienceLevel;
+  notes?: string;
+
+  // Visibility
+  visibility: 'public' | 'bench_only';
+}
+
+export interface EnhancedJob extends Job {
+  classType?: ClassType;
+  customClassType?: string;
+  startTime?: string;
+  endTime?: string;
+  isRecurring?: boolean;
+  recurringPattern?: string;
+  studioAddress?: string;
+  payType?: PayType;
+  payAmount?: number;
+  payMin?: number;
+  payMax?: number;
+  currency?: string;
+  employmentStatus?: EmploymentStatus;
+  cancellationPolicy?: CancellationPolicy;
+  certificationsRequired?: string[];
+  experienceLevel?: ExperienceLevel;
+  notes?: string;
+  visibility?: 'public' | 'bench_only';
+  applicantCount?: number;
+  matchScore?: number;
+}
+
+export interface EnhancedJobWithStudio extends EnhancedJob {
+  studio: {
+    id?: string;
+    name: string | null;
+    location: string | null;
+    images: string[] | null;
+    rating?: number;
+    description?: string;
+  };
+  applications: JobApplication[];
+  hasApplied?: boolean;
+  applicationStatus?: string;
+}
+
+// ==================== STUDIO BENCH (SAVED INSTRUCTORS) ====================
+
+export interface BenchInstructor {
+  id: string;
+  studioId: string;
+  instructorId: string;
+  addedAt: string;
+  notes?: string;
+  tags?: string[];
+  lastContacted?: string;
+  instructor?: Profile;
+}
+
+// ==================== DASHBOARD STATS ====================
+
+export interface StudioDashboardStats {
+  openGigs: number;
+  openGigsChange: number;
+  newApplicants: number;
+  activeClasses: number;
+  responseRate?: number;
+  avgTimeToFill?: number;
 }

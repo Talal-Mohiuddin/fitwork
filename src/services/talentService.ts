@@ -18,11 +18,12 @@ import {
   increment,
 } from "firebase/firestore";
 import { db } from "@/firebase";
-import { Profile } from "@/types";
+import { Profile, BenchInstructor } from "@/types";
 
 // Collections
 const INSTRUCTORS_COLLECTION = "instructors";
 const SAVED_PROFILES_COLLECTION = "saved_profiles";
+const BENCH_COLLECTION = "studio_bench";
 
 export interface InstructorFilters {
   location?: string;
@@ -448,6 +449,160 @@ export async function getFeaturedInstructors(count: number = 6): Promise<Profile
     return instructors;
   } catch (error) {
     console.error("Error fetching featured instructors:", error);
+    return [];
+  }
+}
+
+// =============== STUDIO BENCH (SAVED INSTRUCTORS WITH DETAILS) ===============
+
+/**
+ * Add instructor to studio's bench
+ */
+export async function addToBench(
+  studioId: string,
+  instructorId: string,
+  notes?: string,
+  tags?: string[]
+): Promise<void> {
+  try {
+    const benchRef = doc(db, BENCH_COLLECTION, `${studioId}_${instructorId}`);
+    const benchItem: BenchInstructor = {
+      id: `${studioId}_${instructorId}`,
+      studioId,
+      instructorId,
+      addedAt: new Date().toISOString(),
+      notes,
+      tags,
+    };
+    
+    await setDoc(benchRef, {
+      ...benchItem,
+      addedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error adding to bench:", error);
+    throw new Error("Failed to add instructor to bench");
+  }
+}
+
+/**
+ * Remove instructor from studio's bench
+ */
+export async function removeFromBench(
+  studioId: string,
+  instructorId: string
+): Promise<void> {
+  try {
+    const benchRef = doc(db, BENCH_COLLECTION, `${studioId}_${instructorId}`);
+    await deleteDoc(benchRef);
+  } catch (error) {
+    console.error("Error removing from bench:", error);
+    throw new Error("Failed to remove instructor from bench");
+  }
+}
+
+/**
+ * Check if instructor is on bench
+ */
+export async function isOnBench(
+  studioId: string,
+  instructorId: string
+): Promise<boolean> {
+  try {
+    const benchRef = doc(db, BENCH_COLLECTION, `${studioId}_${instructorId}`);
+    const snapshot = await getDoc(benchRef);
+    return snapshot.exists();
+  } catch (error) {
+    console.error("Error checking bench:", error);
+    return false;
+  }
+}
+
+/**
+ * Get studio's bench (saved instructors with details)
+ */
+export async function getStudioBench(studioId: string): Promise<BenchInstructor[]> {
+  try {
+    const benchQuery = query(
+      collection(db, BENCH_COLLECTION),
+      where("studioId", "==", studioId),
+      orderBy("addedAt", "desc")
+    );
+
+    const snapshot = await getDocs(benchQuery);
+    const benchItems = snapshot.docs.map(doc => doc.data() as BenchInstructor);
+
+    // Fetch instructor details for each bench item
+    const benchWithInstructors = await Promise.all(
+      benchItems.map(async (item) => {
+        const instructor = await getInstructorById(item.instructorId);
+        return {
+          ...item,
+          instructor: instructor || undefined,
+        };
+      })
+    );
+
+    return benchWithInstructors;
+  } catch (error) {
+    console.error("Error fetching studio bench:", error);
+    throw new Error("Failed to fetch bench");
+  }
+}
+
+/**
+ * Update bench item notes or tags
+ */
+export async function updateBenchItem(
+  studioId: string,
+  instructorId: string,
+  updates: { notes?: string; tags?: string[]; lastContacted?: string }
+): Promise<void> {
+  try {
+    const benchRef = doc(db, BENCH_COLLECTION, `${studioId}_${instructorId}`);
+    await updateDoc(benchRef, updates);
+  } catch (error) {
+    console.error("Error updating bench item:", error);
+    throw new Error("Failed to update bench item");
+  }
+}
+
+/**
+ * Mark last contacted time for a bench instructor
+ */
+export async function markBenchInstructorContacted(
+  studioId: string,
+  instructorId: string
+): Promise<void> {
+  try {
+    const benchRef = doc(db, BENCH_COLLECTION, `${studioId}_${instructorId}`);
+    await updateDoc(benchRef, {
+      lastContacted: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error marking contacted:", error);
+  }
+}
+
+/**
+ * Get instructors with availability filter
+ */
+export async function getAvailableInstructors(
+  date: string,
+  styles: string[]
+): Promise<Profile[]> {
+  try {
+    const { instructors } = await getInstructors({
+      openToWork: true,
+      styles,
+      limitCount: 50,
+    });
+
+    // Filter by availability (would need more sophisticated availability checking)
+    // For now, return all open-to-work instructors matching styles
+    return instructors.filter(inst => inst.available !== false);
+  } catch (error) {
+    console.error("Error fetching available instructors:", error);
     return [];
   }
 }

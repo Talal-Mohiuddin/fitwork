@@ -1,21 +1,27 @@
 import React from 'react';
-import { Send, Paperclip, ImageIcon, Smile, Clock } from 'lucide-react';
+import { Send, Paperclip, ImageIcon, Smile, Clock, Loader2 } from 'lucide-react';
 
 interface MessageInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  disabled?: boolean;
+  placeholder?: string;
 }
 
 export default function MessageInput({
   value,
   onChange,
   onSend,
+  disabled = false,
+  placeholder = "Type a message...",
 }: MessageInputProps) {
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      onSend();
+      if (!disabled && value.trim()) {
+        onSend();
+      }
     }
   };
 
@@ -27,8 +33,9 @@ export default function MessageInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Type a message..."
-          className="w-full bg-transparent border-none focus:ring-0 p-3 text-sm min-h-[60px] resize-none text-text-main dark:text-white placeholder-text-muted"
+          placeholder={placeholder}
+          disabled={disabled}
+          className="w-full bg-transparent border-none focus:ring-0 p-3 text-sm min-h-[60px] resize-none text-text-main dark:text-white placeholder-text-muted disabled:opacity-50"
           rows={3}
         />
 
@@ -51,11 +58,17 @@ export default function MessageInput({
             {/* Send Button */}
             <button
               onClick={onSend}
-              disabled={!value.trim()}
+              disabled={!value.trim() || disabled}
               className="bg-primary hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-black rounded-lg p-2 pr-3 pl-3 flex items-center gap-2 font-medium text-sm transition-all shadow-md shadow-primary/20"
             >
-              <span>Send</span>
-              <Send size={18} />
+              {disabled ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <>
+                  <span>Send</span>
+                  <Send size={18} />
+                </>
+              )}
             </button>
           </div>
         </div>

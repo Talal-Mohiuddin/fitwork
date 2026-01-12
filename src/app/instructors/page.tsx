@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ChevronDown, Grid3x3, List, RefreshCw, Users } from "lucide-react";
 import InstructorCard from "./_components/InstructorCard";
 import FilterSidebar from "./_components/FilterSidebar";
+import InviteModal from "./_components/InviteModal";
 import { Profile } from "@/types";
 import { getInstructors, subscribeToInstructors, InstructorFilters } from "@/services/talentService";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,13 @@ export default function InstructorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [filters, setFilters] = useState<InstructorFilters>({});
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [selectedInstructor, setSelectedInstructor] = useState<Profile | null>(null);
+
+  const handleInvite = (instructor: Profile) => {
+    setSelectedInstructor(instructor);
+    setInviteModalOpen(true);
+  };
 
   // Load instructors from Firebase
   const loadInstructors = useCallback(async () => {
@@ -247,6 +255,7 @@ export default function InstructorsPage() {
                     key={instructor.id}
                     instructor={instructor}
                     viewMode={viewMode}
+                    onInvite={handleInvite}
                   />
                 ))}
               </div>
@@ -270,6 +279,18 @@ export default function InstructorsPage() {
           </div>
         </div>
       </main>
+
+      {/* Invite Modal */}
+      {selectedInstructor && (
+        <InviteModal
+          isOpen={inviteModalOpen}
+          onClose={() => {
+            setInviteModalOpen(false);
+            setSelectedInstructor(null);
+          }}
+          instructor={selectedInstructor}
+        />
+      )}
     </div>
   );
 }

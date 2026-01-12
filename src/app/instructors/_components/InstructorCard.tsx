@@ -1,11 +1,18 @@
+"use client";
+
+import { useState } from "react";
 import { Profile } from "@/types";
 import Link from "next/link";
-import { Star, Clock, MapPin, Bookmark } from "lucide-react";
-import Image from "next/image";
+import { Star, Clock, MapPin, Bookmark, BookmarkCheck, Send, Loader2 } from "lucide-react";
+import { useAuth } from "@/store/firebase-auth-provider";
+import { addToBench, removeFromBench, isOnBench } from "@/services/talentService";
+import { useRouter } from "next/navigation";
+import { startConversationWithJobOffer } from "@/services/chatService";
 
 interface InstructorCardProps {
   instructor: Profile;
   viewMode?: "grid" | "list";
+  onInvite?: (instructor: Profile) => void;
 }
 
 const getInitials = (name: string) => {
@@ -20,11 +27,92 @@ const getInitials = (name: string) => {
 export default function InstructorCard({
   instructor,
   viewMode = "grid",
+  onInvite,
 }: InstructorCardProps) {
+  const { user, profile: userProfile } = useAuth();
+  const router = useRouter();
   const isAvailable = instructor.open_to_work !== false;
   const profilePhoto =
     instructor.profile_photo || "https://via.placeholder.com/300";
   const initials = getInitials(instructor.full_name || "IN");
+  
+  const [isSaved, setIsSaved] = useState(false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+
+  // Check if instructor is on bench
+  useState(() => {
+    if (user && userProfile?.user_type === "studio") {
+      isOnBench(user.uid, instructor.id).then(setIsSaved);
+    }
+  });
+
+  const handleBookmark = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    if (userProfile?.user_type !== "studio") {
+      return; // Only studios can bookmark
+    }
+
+    try {
+      setIsBookmarking(true);
+      if (isSaved) {
+        await removeFromBench(user.uid, instructor.id);
+        setIsSaved(false);
+      } else {
+        await addToBench(user.uid, instructor.id, {
+          fitness_styles: instructor.fitness_styles,
+          rating: instructor.rating,
+          full_name: instructor.full_name,
+          profile_photo: instructor.profile_photo,
+          location: instructor.location,
+        });
+        setIsSaved(true);
+      }
+    } catch (error) {
+      console.error("Error toggling bookmark:", error);
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+
+  const handleInvite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    if (userProfile?.user_type !== "studio") {
+      return; // Only studios can invite
+    }
+
+    if (onInvite) {
+      onInvite(instructor);
+      return;
+    }
+
+    // Navigate to chat with this instructor
+    try {
+      setIsInviting(true);
+      // Just navigate to chat - the invite modal will be shown there
+      router.push(`/chat?instructorId=${instructor.id}`);
+    } catch (error) {
+      console.error("Error inviting:", error);
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const BookmarkIcon = isSaved ? BookmarkCheck : Bookmark;
 
   if (viewMode === "list") {
     return (
@@ -56,8 +144,18 @@ export default function InstructorCard({
                 <span>({instructor.review_count || 0})</span>
               </div>
             </div>
-            <button className="text-text-muted hover:text-primary transition-colors shrink-0">
-              <Bookmark size={20} />
+            <button 
+              onClick={handleBookmark}
+              disabled={isBookmarking}
+              className={`transition-colors shrink-0 ${
+                isSaved ? "text-primary" : "text-text-muted hover:text-primary"
+              }`}
+            >
+              {isBookmarking ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <BookmarkIcon size={20} className={isSaved ? "fill-current" : ""} />
+              )}
             </button>
           </div>
 
@@ -94,14 +192,24 @@ export default function InstructorCard({
               </button>
             </Link>
             <button
-              disabled={!isAvailable}
-              className={`w-full flex items-center justify-center h-10 rounded-lg text-sm font-bold transition-colors shadow-sm ${
+              onClick={handleInvite}
+              disabled={!isAvailable || isInviting}
+              className={`w-full flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-bold transition-colors shadow-sm ${
                 isAvailable
                   ? "bg-primary hover:bg-primary-hover text-[#111813]"
                   : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed"
               }`}
             >
-              {isAvailable ? "Invite" : "Unavailable"}
+              {isInviting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : isAvailable ? (
+                <>
+                  <Send size={14} />
+                  Invite
+                </>
+              ) : (
+                "Unavailable"
+              )}
             </button>
           </div>
         </div>
@@ -145,8 +253,18 @@ export default function InstructorCard({
             </div>
           </div>
         </div>
-        <button className="text-text-muted hover:text-primary transition-colors">
-          <Bookmark size={20} />
+        <button 
+          onClick={handleBookmark}
+          disabled={isBookmarking}
+          className={`transition-colors ${
+            isSaved ? "text-primary" : "text-text-muted hover:text-primary"
+          }`}
+        >
+          {isBookmarking ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : (
+            <BookmarkIcon size={20} className={isSaved ? "fill-current" : ""} />
+          )}
         </button>
       </div>
 
@@ -185,14 +303,24 @@ export default function InstructorCard({
           </button>
         </Link>
         <button
-          disabled={!isAvailable}
-          className={`w-full flex items-center justify-center h-10 rounded-lg text-sm font-bold transition-colors shadow-sm ${
+          onClick={handleInvite}
+          disabled={!isAvailable || isInviting}
+          className={`w-full flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-bold transition-colors shadow-sm ${
             isAvailable
               ? "bg-primary hover:bg-primary-hover text-[#111813]"
               : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed"
           }`}
         >
-          {isAvailable ? "Invite" : "Unavailable"}
+          {isInviting ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : isAvailable ? (
+            <>
+              <Send size={14} />
+              Invite
+            </>
+          ) : (
+            "Unavailable"
+          )}
         </button>
       </div>
     </div>

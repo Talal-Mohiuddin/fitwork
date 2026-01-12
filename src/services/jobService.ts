@@ -17,7 +17,17 @@ import {
   QueryConstraint,
 } from "firebase/firestore";
 import { db } from "@/firebase";
-import { Job, JobWithStudio, JobApplication, Profile, ApplicationStatus } from "@/types";
+import { 
+  Job, 
+  JobWithStudio, 
+  JobApplication, 
+  Profile, 
+  ApplicationStatus,
+  EnhancedJob,
+  EnhancedJobWithStudio,
+  JobPostingData,
+  StudioDashboardStats
+} from "@/types";
 
 // Collections
 const JOBS_COLLECTION = "jobs";
@@ -731,5 +741,252 @@ export async function getStudioApplications(
   } catch (error) {
     console.error("Error fetching studio applications:", error);
     throw new Error("Failed to fetch applications");
+  }
+}
+
+// =============== ENHANCED JOB POSTING ===============
+
+/**
+ * Create an enhanced job posting with all wizard data
+ */
+export async function createEnhancedJob(
+  studioId: string,
+  data: JobPostingData
+): Promise<string> {
+  try {
+    const jobRef = doc(collection(db, JOBS_COLLECTION));
+    
+    // Build compensation string
+    let compensation = '';
+    if (data.payType === 'flat_fee') {
+      compensation = `$${data.payAmount} flat`;
+    } else if (data.payType === 'hourly') {
+      compensation = `$${data.payAmount}/hr`;
+    } else if (data.payType === 'range') {
+      compensation = `$${data.payMin}-$${data.payMax}`;
+    }
+
+    const enhancedJob: EnhancedJob = {
+      id: jobRef.id,
+      studio_id: studioId,
+      position: data.customClassType || data.classType,
+      description: data.notes || `${data.classType} class at our studio`,
+      classType: data.classType,
+      customClassType: data.customClassType,
+      
+      // Schedule
+      start_date: data.date,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      isRecurring: data.isRecurring,
+      recurringPattern: data.recurringPattern,
+      
+      // Location
+      location: data.location,
+      studioAddress: data.studioAddress,
+      
+      // Compensation
+      compensation,
+      payType: data.payType,
+      payAmount: data.payAmount,
+      payMin: data.payMin,
+      payMax: data.payMax,
+      currency: data.currency,
+      
+      // Employment
+      employmentStatus: data.employmentStatus,
+      cancellationPolicy: data.cancellationPolicy,
+      
+      // Requirements
+      requirements: data.certificationsRequired,
+      certificationsRequired: data.certificationsRequired,
+      experienceLevel: data.experienceLevel,
+      notes: data.notes,
+      
+      // Status
+      status: "open",
+      visibility: data.visibility,
+      styles: [data.classType],
+      created_at: new Date().toISOString(),
+      applicantCount: 0,
+    };
+
+    await setDoc(jobRef, {
+      ...enhancedJob,
+      created_at: serverTimestamp(),
+    });
+
+    return jobRef.id;
+  } catch (error) {
+    console.error("Error creating enhanced job:", error);
+    throw new Error("Failed to create job posting");
+  }
+}
+
+/**
+ * Get enhanced job by ID with full details
+ */
+export async function getEnhancedJobById(jobId: string): Promise<EnhancedJobWithStudio | null> {
+  try {
+    const jobRef = doc(db, JOBS_COLLECTION, jobId);
+    const jobSnap = await getDoc(jobRef);
+
+    if (!jobSnap.exists()) {
+      return null;
+    }
+
+    const jobData = jobSnap.data() as EnhancedJob;
+    
+    // Get studio details
+    const studioRef = doc(db, STUDIOS_COLLECTION, jobData.studio_id);
+    const studioSnap = await getDoc(studioRef);
+    const studioData = studioSnap.exists() ? studioSnap.data() as Profile : null;
+
+    // Get applications
+    const applications = await getJobApplications(jobId);
+
+    return {
+      ...jobData,
+      id: jobSnap.id,
+      studio: {
+        id: studioData?.id,
+        name: studioData?.name || null,
+        location: studioData?.location || null,
+        images: studioData?.images || null,
+        rating: studioData?.rating,
+        description: studioData?.description,
+      },
+      applications,
+      applicantCount: applications.length,
+    };
+  } catch (error) {
+    console.error("Error fetching enhanced job:", error);
+    throw new Error("Failed to fetch job");
+  }
+}
+
+/**
+ * Get dashboard stats for a studio
+ */
+export async function getStudioDashboardStats(studioId: string): Promise<StudioDashboardStats> {
+  try {
+    const stats = await getJobStats(studioId);
+    
+    // Calculate change (would need historical data for real implementation)
+    // For now, returning mock change data
+    return {
+      openGigs: stats.openJobs,
+      openGigsChange: 2, // Mock: +2 today
+      newApplicants: stats.pendingApplications,
+      activeClasses: stats.openJobs * 4, // Mock: assume 4 classes per job
+    };
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    return {
+      openGigs: 0,
+      openGigsChange: 0,
+      newApplicants: 0,
+      activeClasses: 0,
+    };
+  }
+}
+
+/**
+ * Get jobs with match score for an instructor
+ */
+export async function getJobsWithMatchScore(
+  instructorId: string,
+  instructorProfile: Profile,
+  filters?: {
+    styles?: string[];
+    location?: string;
+    urgent?: boolean;
+    maxDistance?: number;
+  }
+): Promise<EnhancedJobWithStudio[]> {
+  try {
+    const { jobs } = await getJobs({ status: "open", ...filters });
+    
+    // Calculate match score based on instructor profile
+    const jobsWithScore = await Promise.all(
+      jobs.map(async (job) => {
+        let matchScore = 50; // Base score
+        
+        // Style match
+        const instructorStyles = instructorProfile.fitness_styles || [];
+        const jobStyles = job.styles || [];
+        const styleMatch = jobStyles.some(s => instructorStyles.includes(s));
+        if (styleMatch) matchScore += 25;
+        
+        // Certification match
+        const instructorCerts = instructorProfile.certifications || [];
+        const jobRequirements = job.requirements || [];
+        const certMatch = jobRequirements.some(r => instructorCerts.includes(r));
+        if (certMatch) matchScore += 15;
+        
+        // Location match (basic - could use geolocation)
+        if (job.location && instructorProfile.location) {
+          if (job.location.toLowerCase().includes(instructorProfile.location.toLowerCase())) {
+            matchScore += 10;
+          }
+        }
+        
+        // Experience level match
+        const expYears = instructorProfile.years_of_experience || 0;
+        if (expYears >= 5) matchScore += 5;
+        
+        // Check if already applied
+        const appStatus = await getApplicationStatus(job.id, instructorId);
+        
+        return {
+          ...job,
+          matchScore: Math.min(100, matchScore),
+          hasApplied: appStatus.hasApplied,
+          applicationStatus: appStatus.status,
+        } as EnhancedJobWithStudio;
+      })
+    );
+    
+    // Sort by match score
+    return jobsWithScore.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+  } catch (error) {
+    console.error("Error fetching jobs with match score:", error);
+    throw new Error("Failed to fetch jobs");
+  }
+}
+
+/**
+ * Accept an application and optionally send a message
+ */
+export async function acceptApplication(
+  applicationId: string,
+  jobId: string,
+  sendMessage: boolean = true
+): Promise<void> {
+  try {
+    await updateApplicationStatus(applicationId, "accepted");
+    
+    // Close other applications for this job if this fills the position
+    // (Optional: could make this configurable)
+    
+  } catch (error) {
+    console.error("Error accepting application:", error);
+    throw new Error("Failed to accept application");
+  }
+}
+
+/**
+ * Shortlist an application
+ */
+export async function shortlistApplication(applicationId: string): Promise<void> {
+  try {
+    const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+    await updateDoc(appRef, {
+      status: "shortlisted",
+      updated_at: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error shortlisting application:", error);
+    throw new Error("Failed to shortlist application");
   }
 }

@@ -83,7 +83,7 @@ export default function StudioDashboard() {
               <span>Post Guest Spot</span>
             </Link>
             <Link
-              href="/jobs/post"
+              href="/jobs/post/wizard"
               className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md shadow-primary/20 w-fit"
             >
               <Plus size={20} />
