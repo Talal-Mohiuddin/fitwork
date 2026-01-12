@@ -13,9 +13,44 @@ import GuestSpotsSection from "./_components/GuestSpotsSection";
 import GuestSpotApplicationsSection from "./_components/GuestSpotApplicationsSection";
 import { useAuth } from '@/store/firebase-auth-provider';
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getStudioById } from "@/services/studioService";
+import { Loader2 } from "lucide-react";
 
 export default function StudioDashboard() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const router = useRouter();
+  const [loading, setLoading] = React.useState(true);
+  const [studioProfile, setStudioProfile] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    async function checkProfile() {
+      if (!user) return; // Wait for auth
+
+      try {
+        const profile = await getStudioById(user.uid);
+        if (!profile || !profile.profile_completed) {
+          router.push("/profile-setup/studio");
+          return;
+        }
+        setStudioProfile(profile);
+      } catch (error) {
+        console.error("Error checking profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    checkProfile();
+  }, [user, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -33,10 +68,10 @@ export default function StudioDashboard() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl md:text-4xl font-black text-text-main dark:text-white tracking-tight">
-              {getGreeting()}, {profile?.name || 'Studio'}
+              {getGreeting()}, {studioProfile?.name || 'Studio'}
             </h1>
             <p className="text-text-sub dark:text-gray-400 text-base">
-              Here&apos;s the latest status of your {profile?.location || 'studio'} operations.
+              Here&apos;s the latest status of your {studioProfile?.location || 'studio'} operations.
             </p>
           </div>
           <div className="flex gap-3">

@@ -18,7 +18,7 @@ import {
   increment,
 } from "firebase/firestore";
 import { db } from "@/firebase";
-import { Profile, StudioClaimToken, StudioDetails } from "@/types";
+import { Profile, StudioClaimToken, StudioDetails, StudioProfileSetup } from "@/types";
 import { uploadBase64ToStorage } from "@/lib/uploadToStorage";
 
 // Collections
@@ -128,6 +128,121 @@ export async function getStudioById(studioId: string): Promise<Profile | null> {
   } catch (error) {
     console.error("Error fetching studio:", error);
     throw new Error("Failed to fetch studio");
+  }
+}
+
+/**
+ * Get studio profile setup data (extended profile for setup page)
+ */
+export async function getStudioProfileSetup(studioId: string): Promise<StudioProfileSetup | null> {
+  try {
+    const studioRef = doc(db, STUDIOS_COLLECTION, studioId);
+    const studioSnap = await getDoc(studioRef);
+
+    if (!studioSnap.exists()) {
+      return null;
+    }
+
+    return {
+      ...studioSnap.data(),
+      id: studioSnap.id,
+    } as StudioProfileSetup;
+  } catch (error) {
+    console.error("Error fetching studio profile setup:", error);
+    throw new Error("Failed to fetch studio profile setup");
+  }
+}
+
+/**
+ * Save studio profile setup (supports draft and publish)
+ */
+export async function saveStudioProfileSetup(
+  studioId: string,
+  profile: Partial<StudioProfileSetup>,
+  isDraft: boolean = false
+): Promise<void> {
+  try {
+    // Upload images if they're base64
+    const updatedProfile = await uploadStudioSetupImages(studioId, profile);
+
+    const studioRef = doc(db, STUDIOS_COLLECTION, studioId);
+    const existingDoc = await getDoc(studioRef);
+
+    // Map setup fields to standard profile fields
+    const mappedProfile = {
+      ...updatedProfile,
+      // Map studio_name to name
+      name: updatedProfile.studio_name || updatedProfile.name,
+      // Map about_studio to description
+      description: updatedProfile.about_studio || updatedProfile.description,
+      // Map class_types to styles
+      styles: updatedProfile.class_types || updatedProfile.styles,
+      // Map member_amenities to amenities
+      amenities: updatedProfile.member_amenities || updatedProfile.amenities,
+      // Map gallery_photos to images
+      images: updatedProfile.gallery_photos || updatedProfile.images,
+      // Standard fields
+      user_type: "studio" as const,
+      status: isDraft ? "draft" : "published",
+      profile_completed: !isDraft,
+      updated_at: serverTimestamp(),
+      last_saved: new Date().toISOString(),
+    };
+
+    if (existingDoc.exists()) {
+      await updateDoc(studioRef, mappedProfile);
+    } else {
+      await setDoc(studioRef, {
+        ...mappedProfile,
+        created_at: serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    console.error("Error saving studio profile setup:", error);
+    throw new Error("Failed to save studio profile setup");
+  }
+}
+
+/**
+ * Upload studio setup images to Firebase Storage
+ */
+async function uploadStudioSetupImages(
+  studioId: string,
+  profile: Partial<StudioProfileSetup>
+): Promise<Partial<StudioProfileSetup>> {
+  const updatedProfile = { ...profile };
+
+  try {
+    // Upload logo if it's base64
+    if (updatedProfile.logo && updatedProfile.logo.startsWith("data:image")) {
+      const logoPath = `studios/${studioId}/logo_${Date.now()}.jpg`;
+      const logoURL = await uploadBase64ToStorage(updatedProfile.logo, logoPath);
+      updatedProfile.logo = logoURL;
+    }
+
+    // Upload gallery photos if they're base64 strings
+    if (updatedProfile.gallery_photos && updatedProfile.gallery_photos.length > 0) {
+      const uploadedPhotos: string[] = [];
+
+      for (let i = 0; i < updatedProfile.gallery_photos.length; i++) {
+        const photo = updatedProfile.gallery_photos[i];
+        if (photo.startsWith("data:image")) {
+          const photoPath = `studios/${studioId}/gallery/photo_${Date.now()}_${i}.jpg`;
+          const photoURL = await uploadBase64ToStorage(photo, photoPath);
+          uploadedPhotos.push(photoURL);
+        } else {
+          uploadedPhotos.push(photo);
+        }
+      }
+
+      updatedProfile.gallery_photos = uploadedPhotos;
+      updatedProfile.images = uploadedPhotos;
+    }
+
+    return updatedProfile;
+  } catch (error) {
+    console.error("Error uploading studio setup images:", error);
+    throw new Error("Failed to upload images");
   }
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Send, Search, Loader2, UserPlus } from 'lucide-react';
 import { getSavedProfiles } from '@/services/talentService';
 import { Profile } from '@/types';
@@ -14,13 +14,7 @@ export default function YourBenchSection({ studioId }: YourBenchSectionProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [bench, setBench] = useState<Profile[]>([]);
 
-  useEffect(() => {
-    if (studioId) {
-      loadBench();
-    }
-  }, [studioId]);
-
-  const loadBench = async () => {
+  const loadBench = useCallback(async () => {
     if (!studioId) return;
     
     try {
@@ -32,10 +26,14 @@ export default function YourBenchSection({ studioId }: YourBenchSectionProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [studioId]);
+
+  useEffect(() => {
+    loadBench();
+  }, [loadBench]);
 
   return (
-    <section className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm h-full max-h-[600px] flex flex-col">
+    <section className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm h-full max-h-150 flex flex-col">
       <div className="px-6 py-5 border-b border-border-light dark:border-border-dark">
         <h2 className="text-lg font-bold text-text-main dark:text-white">
           Your Bench

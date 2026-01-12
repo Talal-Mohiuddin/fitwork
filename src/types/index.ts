@@ -274,3 +274,47 @@ export interface StudioClaimToken {
   claimed_by?: string;
   claimed_at?: string;
 }
+
+// Extended Studio Profile for setup page
+export interface StudioProfileSetup extends Profile {
+  // Identity & Brand
+  logo?: string;
+  studio_name?: string;
+  about_studio?: string;
+
+  // Contact & Location
+  street_address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+
+  // Class Styles & Amenities
+  class_types?: string[];
+  member_amenities?: string[];
+
+  // Instructor Experience
+  music_policy?: 'instructor_choice' | 'studio_playlist' | 'mixed_model';
+  tools_equipment?: string[];
+  onboarding_requirements?: {
+    audition_required?: boolean;
+    paid_training?: boolean;
+  };
+
+  // Compensation & Perks
+  pay_transparency?: boolean;
+  base_pay_min?: number;
+  base_pay_max?: number;
+  pay_model?: 'flat_rate' | 'tiered' | 'hourly';
+  additional_perks?: string[];
+
+  // Studio Gallery
+  gallery_photos?: string[];
+
+  // Status
+  status?: 'draft' | 'published';
+  last_saved?: string;
+}
