@@ -21,6 +21,8 @@ import { getJobs } from "@/services/jobService";
 import { Profile, StudioProfileSetup, JobWithStudio } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/store/firebase-auth-provider";
+import { getOrCreateConversation } from "@/services/chatService";
 
 // Combined type for studio detail that includes all possible fields
 type StudioDetail = Profile & Partial<StudioProfileSetup>;
@@ -29,6 +31,7 @@ export default function StudioDetailPage() {
   const params = useParams();
   const router = useRouter();
   const studioId = params.id as string;
+  const { user, profile } = useAuth();
 
   const [studio, setStudio] = useState<StudioDetail | null>(null);
   const [jobs, setJobs] = useState<JobWithStudio[]>([]);
@@ -44,6 +47,8 @@ export default function StudioDetailPage() {
         const studioData = await getStudioById(studioId);
         if (!studioData) {
           setError("Studio not found");
+        } else {
+          setStudio(studioData);
           
           // Fetch open jobs for this studio
           try {
@@ -60,8 +65,6 @@ export default function StudioDetailPage() {
           } finally {
             setJobsLoading(false);
           }
-        } else {
-          setStudio(studioData);
         }
       } catch (err) {
         console.error("Error fetching studio:", err);
@@ -96,6 +99,48 @@ export default function StudioDetailPage() {
 
   const mainImage = studio.images?.[0] || studio.logo || "https://via.placeholder.com/1200x400";
   const galleryImages = studio.images?.slice(1, 5) || [];
+
+  const handleScrollToJobs = () => {
+    document.getElementById('open-gigs')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleMessageStudio = async () => {
+    if (!user || !profile) {
+      router.push(`/login?redirect=/studios/${studioId}`);
+      return;
+    }
+
+    try {
+      const studioName = studio.name || "Studio";
+      const studioImage = studio.images?.[0] || studio.logo;
+      
+      // Prevent messaging self
+      if (user.uid === studioId) {
+        alert("You cannot message yourself");
+        return;
+      }
+
+      const conversation = await getOrCreateConversation(
+        user.uid,
+        studioId,
+        {
+          name: profile.full_name || profile.name || "User",
+          avatar: profile.photo_url || undefined,
+          userType: (profile.user_type as "studio" | "instructor") || "instructor"
+        },
+        {
+          name: studioName,
+          avatar: studioImage || undefined,
+          userType: "studio"
+        }
+      );
+      
+      router.push(`/chat?conversationId=${conversation.id}`);
+    } catch (err) {
+      console.error("Error starting conversation:", err);
+      alert("Failed to start conversation. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
@@ -398,10 +443,17 @@ export default function StudioDetailPage() {
                     </p>
                   )}
                 </div>
-                <Button className="w-full mt-6 bg-primary hover:bg-primary-hover text-[#111813] font-bold">
+                <Button 
+                  onClick={handleScrollToJobs}
+                  className="w-full mt-6 bg-primary hover:bg-primary-hover text-[#111813] font-bold"
+                >
                   View Open Gigs
                 </Button>
-                <Button variant="outline" className="w-full mt-3">
+                <Button 
+                  onClick={handleMessageStudio}
+                  variant="outline" 
+                  className="w-full mt-3"
+                >
                   Message Studio
                 </Button>
               </div>
@@ -471,7 +523,7 @@ export default function StudioDetailPage() {
         </div>
 
         {/* Open Gigs Section */}
-        <section className="mt-12">
+        <section id="open-gigs" className="mt-12">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-text-main dark:text-white">
               Open Gigs

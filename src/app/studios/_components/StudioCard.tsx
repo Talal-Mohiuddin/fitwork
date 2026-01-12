@@ -1,6 +1,9 @@
 import { Profile } from "@/types";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Star, MapPin, Bookmark, MapPinIcon } from "lucide-react";
+import { useAuth } from "@/store/firebase-auth-provider";
+import { getOrCreateConversation } from "@/services/chatService";
 
 interface StudioCardProps {
   studio: Profile;
@@ -11,7 +14,49 @@ export default function StudioCard({
   studio,
   viewMode = "grid",
 }: StudioCardProps) {
+  const router = useRouter();
+  const { user, profile } = useAuth();
   const studioImage = studio.images?.[0] || "https://via.placeholder.com/400";
+
+  const handleContact = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user || !profile) {
+      router.push(`/login?redirect=/studios/${studio.id}`);
+      return;
+    }
+
+    // Prevent messaging self
+    if (user.uid === studio.id) {
+       alert("You cannot message yourself");
+       return;
+    }
+
+    try {
+      const studioName = studio.name || "Studio";
+      const sImage = studio.images?.[0] || studio.logo;
+      
+      const conversation = await getOrCreateConversation(
+        user.uid,
+        studio.id,
+        {
+          name: profile.full_name || profile.name || "User",
+          avatar: profile.photo_url || undefined,
+          userType: (profile.user_type as "studio" | "instructor") || "instructor"
+        },
+        {
+          name: studioName,
+          avatar: sImage || undefined,
+          userType: "studio"
+        }
+      );
+      
+      router.push(`/chat?conversationId=${conversation.id}`);
+    } catch (err) {
+      console.error("Error starting conversation:", err);
+      alert("Failed to start conversation. Please try again.");
+    }
+  };
+
 
   if (viewMode === "list") {
     return (
@@ -68,7 +113,10 @@ export default function StudioCard({
                 View Studio
               </button>
             </Link>
-            <button className="w-full flex items-center justify-center h-10 rounded-lg bg-primary hover:bg-primary-hover text-[#111813] text-sm font-bold transition-colors shadow-sm">
+            <button 
+              onClick={handleContact}
+              className="w-full flex items-center justify-center h-10 rounded-lg bg-primary hover:bg-primary-hover text-[#111813] text-sm font-bold transition-colors shadow-sm"
+            >
               Contact
             </button>
           </div>
@@ -139,7 +187,10 @@ export default function StudioCard({
               View Studio
             </button>
           </Link>
-          <button className="w-full flex items-center justify-center h-10 rounded-lg bg-primary hover:bg-primary-hover text-[#111813] text-sm font-bold transition-colors shadow-sm">
+          <button 
+            onClick={handleContact}
+            className="w-full flex items-center justify-center h-10 rounded-lg bg-primary hover:bg-primary-hover text-[#111813] text-sm font-bold transition-colors shadow-sm"
+          >
             Contact
           </button>
         </div>

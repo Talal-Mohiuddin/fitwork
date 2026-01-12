@@ -10,7 +10,7 @@ import IdealSection from "./_components/ideal-section";
 import PostJobSection from "./_components/post-job";
 import { getStudioById, getStudios } from "@/services/studioService";
 import { getInstructorProfile } from "@/services/instructorProfileService";
-import { Loader2, MapPin } from "lucide-react";
+import { Loader2, MapPin, BarChart3, Briefcase, Users, Target, Clipboard, Plane } from "lucide-react";
 import { Profile } from "@/types";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -144,7 +144,7 @@ export default function Home() {
                 <>
                   <Link href="/dashboard/studio" className="block">
                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 border border-border-light dark:border-border-dark hover:border-primary transition-all hover:shadow-lg">
-                      <div className="text-4xl mb-4">📊</div>
+                      <BarChart3 className="w-16 h-16 mb-4 text-primary" />
                       <h3 className="text-xl font-bold text-text-main dark:text-white mb-2">
                         Dashboard
                       </h3>
@@ -153,7 +153,7 @@ export default function Home() {
                   </Link>
                   <Link href="/jobs/post/wizard" className="block">
                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 border border-border-light dark:border-border-dark hover:border-primary transition-all hover:shadow-lg">
-                      <div className="text-4xl mb-4">💼</div>
+                      <Briefcase className="w-16 h-16 mb-4 text-primary" />
                       <h3 className="text-xl font-bold text-text-main dark:text-white mb-2">
                         Post a Job
                       </h3>
@@ -162,7 +162,7 @@ export default function Home() {
                   </Link>
                   <Link href="/instructors" className="block">
                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 border border-border-light dark:border-border-dark hover:border-primary transition-all hover:shadow-lg">
-                      <div className="text-4xl mb-4">👥</div>
+                      <Users className="w-16 h-16 mb-4 text-primary" />
                       <h3 className="text-xl font-bold text-text-main dark:text-white mb-2">
                         Find Talent
                       </h3>
@@ -174,7 +174,7 @@ export default function Home() {
                 <>
                   <Link href="/jobs" className="block">
                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 border border-border-light dark:border-border-dark hover:border-primary transition-all hover:shadow-lg">
-                      <div className="text-4xl mb-4">🎯</div>
+                      <Target className="w-16 h-16 mb-4 text-primary" />
                       <h3 className="text-xl font-bold text-text-main dark:text-white mb-2">
                         Browse Jobs
                       </h3>
@@ -183,7 +183,7 @@ export default function Home() {
                   </Link>
                   <Link href="/dashboard/instructor" className="block">
                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 border border-border-light dark:border-border-dark hover:border-primary transition-all hover:shadow-lg">
-                      <div className="text-4xl mb-4">📋</div>
+                      <Clipboard className="w-16 h-16 mb-4 text-primary" />
                       <h3 className="text-xl font-bold text-text-main dark:text-white mb-2">
                         Dashboard
                       </h3>
@@ -192,7 +192,7 @@ export default function Home() {
                   </Link>
                   <Link href="/guest-spots" className="block">
                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 border border-border-light dark:border-border-dark hover:border-primary transition-all hover:shadow-lg">
-                      <div className="text-4xl mb-4">✈️</div>
+                      <Plane className="w-16 h-16 mb-4 text-primary" />
                       <h3 className="text-xl font-bold text-text-main dark:text-white mb-2">
                         Guest Spots
                       </h3>

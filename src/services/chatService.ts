@@ -113,14 +113,14 @@ export async function sendMessage(
     // Sanitize optional fields in nested objects to prevent "undefined" errors
     const sanitizedJobOffer = jobOffer ? {
       ...jobOffer,
-      endTime: jobOffer.endTime || undefined,
-      classType: jobOffer.classType || undefined,
-    } : undefined;
+      endTime: jobOffer.endTime || null,
+      classType: jobOffer.classType || null,
+    } : null;
 
     const sanitizedGigInvite = gigInvite ? {
       ...gigInvite,
-      description: gigInvite.description || undefined,
-    } : undefined;
+      description: gigInvite.description || null,
+    } : null;
 
     // Create message
     const messageRef = doc(collection(db, CONVERSATIONS_COLLECTION, conversationId, MESSAGES_COLLECTION));
