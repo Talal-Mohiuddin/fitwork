@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Search, Users, Building, LogOut, UserCircle } from "lucide-react";
+import { Menu, X, Search, Users, Building, LogOut, UserCircle, Plane } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AuthModal from "./auth/auth-modal";
 import { useStore } from "@/store/zustand";
@@ -48,7 +48,7 @@ export default function Header() {
 
   return (
     <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 md:px-0 h-[72px] flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 md:px-0 h-18 flex items-center justify-between">
         {/* Logo and Title */}
         <div
           className="flex items-center gap-2 cursor-pointer"
@@ -92,10 +92,17 @@ export default function Header() {
           </Link>
           <Link
             href="/studios"
-            className="flex border-r-2 pr-4 flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
+            className="flex flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
           >
             <Building className="w-6 h-6 " />
             <span className="text-sm">Studios</span>
+          </Link>
+          <Link
+            href="/guest-spots"
+            className="flex border-r-2 pr-4 flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
+          >
+            <Plane className="w-6 h-6 " />
+            <span className="text-sm">Guest Spots</span>
           </Link>
           
           {isLoggedIn ? (
@@ -174,6 +181,13 @@ export default function Header() {
             >
               <Building className="w-6 h-6" />
               <span className="text-sm">Studios</span>
+            </Link>
+            <Link
+              href="/guest-spots"
+              className="flex flex-col items-center text-gray-800 hover:text-[#21c55e]"
+            >
+              <Plane className="w-6 h-6" />
+              <span className="text-sm">Guest Spots</span>
             </Link>
           </div>
           <div className="border-t border-gray-200 dark:border-slate-800 py-4">

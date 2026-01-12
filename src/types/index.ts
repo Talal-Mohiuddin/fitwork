@@ -97,6 +97,10 @@ export interface Profile {
   class_rate?: string;
   available?: boolean;
   video_url?: string;
+
+  // Studio-specific fields for instructor expectations and compensation
+  experience_level?: string;
+  pay_structure?: string;
 }
 
 export interface Job {
@@ -157,4 +161,116 @@ export interface savedProfile {
   user_id: string;
   profile_id: string;
   saved_at: string;
+}
+
+// Guest Spot types
+export interface GuestSpot {
+  id: string;
+  studio_id: string;
+  title: string;
+  description: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  duration_type: "single_class" | "workshop" | "weekend" | "week" | "retreat" | "series";
+  styles: string[];
+  compensation: string;
+  accommodations_provided?: boolean;
+  travel_covered?: boolean;
+  requirements?: string[];
+  min_experience?: string;
+  created_at: string;
+  status: "open" | "filled" | "cancelled";
+
+  // Additional benefits
+  promo_support?: boolean;
+  meals_included?: boolean;
+  studio_perks?: boolean;
+  featured_instructor?: boolean;
+  local_transport?: boolean;
+  content_provided?: boolean;
+  public_event?: boolean;
+}
+
+export interface GuestSpotWithStudio extends GuestSpot {
+  studio: {
+    id: string;
+    name: string | null;
+    location: string | null;
+    images: string[] | null;
+  };
+  applications?: GuestSpotApplication[];
+  application_count?: number;
+}
+
+export interface GuestSpotApplication {
+  id: string;
+  guest_spot_id: string;
+  applicant_id: string;
+  applied_at: string;
+  status: "pending" | "accepted" | "rejected" | "invited";
+  message?: string;
+  type?: "invite" | "apply";
+  proposed_rate?: string;
+}
+
+export interface GuestSpotApplicationWithDetails extends GuestSpotApplication {
+  guest_spot: GuestSpotWithStudio;
+  applicant?: Profile;
+}
+
+export interface GuestSpotApplicationStatus {
+  hasApplied: boolean;
+  applicationId?: string;
+  status?: "pending" | "accepted" | "rejected" | "invited";
+}
+
+// Studio Details type with related data
+export type StudioDetails = {
+  id: string;
+  email: string;
+  user_type: mode;
+
+  // Studio profile fields
+  name?: string;
+  tagline?: string;
+  location?: string;
+  description?: string;
+  phone_number?: string;
+  website?: string;
+  instagram?: string;
+  facebook?: string;
+  styles?: string[];
+  amenities?: string[];
+  hiring_types?: string[];
+  images?: string[];
+
+  // Rating fields
+  rating?: number;
+  review_count?: number;
+  view_count?: number;
+
+  // Related data
+  reviews?: Review[];
+  instructors?: Profile[];
+  openPositions?: Job[];
+  guestSpots?: GuestSpot[];
+
+  // Other fields
+  created_at?: string;
+  profile_completed?: boolean;
+  subscription_tier?: SubscriptionTier;
+  subscription_status?: SubscriptionStatus;
+};
+
+// Studio claim token
+export interface StudioClaimToken {
+  id: string;
+  studio_id: string;
+  token: string;
+  created_at: string;
+  expires_at: string;
+  claimed: boolean;
+  claimed_by?: string;
+  claimed_at?: string;
 }

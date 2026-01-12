@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogHeader,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Building, Dumbbell } from "lucide-react";
@@ -191,6 +193,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login" }: Aut
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 p-8">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Check Your Email</DialogTitle>
+          </DialogHeader>
           <div className="flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-[#21c55e]/10 rounded-full flex items-center justify-center mb-4">
               <Mail className="w-8 h-8 text-[#21c55e]" />
@@ -217,6 +222,11 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login" }: Aut
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 p-8">
+        <DialogHeader>
+          <DialogTitle className="sr-only">
+            {activeTab === "login" ? "Sign In" : "Create Account"}
+          </DialogTitle>
+        </DialogHeader>
         <FitgigLogo />
         
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")} className="w-full">

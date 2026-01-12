@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowRight, Shield, Check, Loader } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { ArrowRight, Shield, Check, Loader2, Loader } from "lucide-react";
 import { Profile } from "@/types";
 import BasicsSection from "./_components/BasicsSection";
 import ExperienceSection from "./_components/ExperienceSection";
@@ -24,6 +26,7 @@ const sections: { id: FormStep; label: string; number: number }[] = [
 ];
 
 export default function InstructorProfileSetup() {
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState<FormStep>("basics");
   const [completionPercentage, setCompletionPercentage] = useState(20);
   const [isSaving, setIsSaving] = useState(false);
@@ -178,30 +181,24 @@ export default function InstructorProfileSetup() {
   const handleSaveDraft = async () => {
     const userId = firebaseUser?.uid || (user as any)?.uid || (user as any)?.id;
     if (!userId) {
-      alert("Please log in first");
+      toast.error("Please log in first");
       return;
     }
 
     setIsSaving(true);
     try {
-      // Show uploading message if there are images
-      if (profile.profile_photo || (profile.gallery_images && profile.gallery_images.length > 0)) {
-        console.log("Uploading images...");
-      }
-      
-      // Ensure email is from auth
       const profileToSave = {
         ...profile,
         email: firebaseUser?.email || profile.email,
       };
       
       await saveProfileDraft(userId, profileToSave);
-      alert("✓ Profile saved as draft successfully!");
+      toast.success("Profile draft saved successfully!");
       console.log("Draft saved:", profileToSave);
     } catch (error) {
       console.error("Error saving draft:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to save draft";
-      alert(`Failed to save draft: ${errorMessage}`);
+      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -218,50 +215,45 @@ export default function InstructorProfileSetup() {
     const userId = firebaseUser?.uid || (user as any)?.uid || (user as any)?.id;
     console.log("Submitting profile for userId:", userId, profile);
     if (!userId) {
-      alert("Please log in first");
+      toast.error("Please log in first");
+      return;
+    }
+
+    // Validation
+    if (!profile.full_name?.trim()) {
+      toast.error("Please enter your full name");
+      return;
+    }
+    if (!profile.headline?.trim()) {
+      toast.error("Please add a professional headline");
+      return;
+    }
+    if (!profile.experience || profile.experience.length === 0) {
+      toast.error("Please add at least one work experience");
+      return;
+    }
+    if (!profile.availability_slots || profile.availability_slots.length === 0) {
+      toast.error("Please set your availability");
       return;
     }
 
     setIsSaving(true);
     try {
-      // Validation
-      if (!profile.full_name || !profile.headline) {
-        alert("Please complete the basics section (name and headline required).");
-        setIsSaving(false);
-        return;
-      }
-      if (!profile.experience || profile.experience.length === 0) {
-        alert("Please add at least one work experience.");
-        setIsSaving(false);
-        return;
-      }
-      if (!profile.availability_slots || profile.availability_slots.length === 0) {
-        alert("Please set your availability.");
-        setIsSaving(false);
-        return;
-      }
-
-      // Show uploading message if there are images
-      if (profile.profile_photo || (profile.gallery_images && profile.gallery_images.length > 0)) {
-        console.log("Uploading images before submission...");
-      }
-
-      // Ensure email is from auth
       const profileToSubmit = {
         ...profile,
         email: firebaseUser?.email || profile.email,
       };
 
       await submitProfile(userId, profileToSubmit);
-      alert("✓ Profile submitted successfully! We will review it shortly.");
+      toast.success("Profile submitted successfully! We will review it shortly.");
       console.log("Profile submitted:", profileToSubmit);
       
-      // Redirect to dashboard instead of resetting
-      window.location.href = "/dashboard/instructor";
+      // Redirect to dashboard
+      router.push("/dashboard/instructor");
     } catch (error) {
       console.error("Error submitting profile:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to submit profile";
-      alert(`Error: ${errorMessage}`);
+      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -321,7 +313,7 @@ export default function InstructorProfileSetup() {
     <div className="min-h-screen bg-gray-50/50 dark:bg-slate-950">
       <div className="flex">
         {/* Sidebar Navigation - Fixed */}
-        <aside className="hidden lg:flex w-72 flex-col fixed left-0 top-[72px] bottom-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900 p-6 overflow-y-auto z-20">
+        <aside className="hidden lg:flex w-72 flex-col fixed left-0 top-18 bottom-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900 p-6 overflow-y-auto z-20">
           <div className="mb-8">
             <h1 className="text-lg font-bold text-slate-900 dark:text-white">Profile Builder</h1>
             <div className="flex items-center justify-between mt-1">
@@ -330,7 +322,7 @@ export default function InstructorProfileSetup() {
             </div>
             <div className="mt-3 h-2 w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
               <div 
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500 ease-out"
+                className="h-full rounded-full bg-linear-to-r from-emerald-500 to-emerald-400 transition-all duration-500 ease-out"
                 style={{ width: `${completionPercentage}%` }}
               />
             </div>
@@ -371,7 +363,7 @@ export default function InstructorProfileSetup() {
           </nav>
 
           <div className="mt-auto pt-6">
-            <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4 border border-emerald-100 dark:border-emerald-800/30">
+            <div className="rounded-xl bg-linear-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4 border border-emerald-100 dark:border-emerald-800/30">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
                   <Shield size={18} className="text-emerald-500" />
@@ -430,7 +422,7 @@ export default function InstructorProfileSetup() {
               className="text-sm font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors active:scale-95 disabled:opacity-50 flex items-center gap-2"
               type="button"
             >
-              {isSaving ? <Loader size={14} className="animate-spin" /> : null}
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : null}
               {isSaving ? "Saving..." : "Save as Draft"}
             </button>
             <div className="flex gap-3">
@@ -450,7 +442,7 @@ export default function InstructorProfileSetup() {
               >
                 {isSaving ? (
                   <>
-                    <Loader size={16} className="animate-spin" />
+                    <Loader2 size={16} className="animate-spin" />
                     Uploading...
                   </>
                 ) : (

@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, Users, Dumbbell, Loader2 } from 'lucide-react';
+import { AlertCircle, Users, Dumbbell, Loader2, Plane } from 'lucide-react';
 import { getStudioDashboardStats } from '@/services/studioService';
+import { getGuestSpotStats } from '@/services/guestSpotService';
 
 interface StatCard {
   title: string;
@@ -24,6 +25,12 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
       value: 0,
       icon: <AlertCircle size={20} />,
       iconBg: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
+    },
+    {
+      title: 'Guest Spots',
+      value: 0,
+      icon: <Plane size={20} />,
+      iconBg: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
     },
     {
       title: 'New Applicants',
@@ -50,25 +57,36 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
     
     try {
       setIsLoading(true);
-      const data = await getStudioDashboardStats(studioId);
+      const [dashboardData, guestSpotData] = await Promise.all([
+        getStudioDashboardStats(studioId),
+        getGuestSpotStats(studioId),
+      ]);
+      
+      const totalPendingApps = dashboardData.pendingApplications + guestSpotData.pendingApplications;
       
       setStats([
         {
           title: 'Open Gigs',
-          value: data.openJobs,
-          change: data.newJobsToday > 0 ? `+${data.newJobsToday} today` : undefined,
+          value: dashboardData.openJobs,
+          change: dashboardData.newJobsToday > 0 ? `+${dashboardData.newJobsToday} today` : undefined,
           icon: <AlertCircle size={20} />,
           iconBg: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
         },
         {
+          title: 'Guest Spots',
+          value: guestSpotData.openGuestSpots,
+          icon: <Plane size={20} />,
+          iconBg: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
+        },
+        {
           title: 'New Applicants',
-          value: data.pendingApplications,
+          value: totalPendingApps,
           icon: <Users size={20} />,
           iconBg: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
         },
         {
           title: 'Your Bench',
-          value: data.benchSize,
+          value: dashboardData.benchSize,
           icon: <Dumbbell size={20} />,
           iconBg: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
         },
@@ -82,8 +100,8 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+        {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
             className="bg-surface-light dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex items-center justify-center h-32"
@@ -96,7 +114,7 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
       {stats.map((stat) => (
         <div
           key={stat.title}
