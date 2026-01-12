@@ -139,6 +139,7 @@ export default function JobApplicationSheet({
       >
         {/* Header */}
         <SheetHeader className="border-b border-slate-100 dark:border-gray-800/50 bg-white dark:bg-[#152a1c] px-8 py-6 gap-0">
+          <SheetTitle className="sr-only">Job Application</SheetTitle>
           <div className="flex items-start justify-between mb-4 w-full">
             <button
               onClick={() => onOpenChange(false)}

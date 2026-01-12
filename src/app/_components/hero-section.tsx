@@ -3,7 +3,11 @@
 import Image from "next/image";
 import { Mail, CheckCircle } from "lucide-react";
 
-export default function HeroSection() {
+interface HeroSectionProps {
+  isLoggedIn?: boolean;
+}
+
+export default function HeroSection({ isLoggedIn = false }: HeroSectionProps) {
   return (
     <section className="w-full pt-12 pb-16 md:py-24  max-w-7xl mx-auto px-4 md:px-0">
       <div className="flex flex-col md:flex-row items-center gap-12 lg:gap-20">
@@ -15,31 +19,33 @@ export default function HeroSection() {
               Connect with studios, discover gigs.
             </span>
           </h1>
-          <div className="w-full max-w-md space-y-4">
-            <div className="bg-neutral-light/50 p-1 rounded-lg border border-border-light mb-6 flex items-center gap-2 pl-3">
-              <Mail className="w-5 h-5 text-neutral-mid" />
-              <input
-                className="w-full bg-transparent border-none focus:ring-0 text-neutral-dark text-sm p-2 placeholder:text-neutral-mid/70"
-                placeholder="Email or phone"
-                type="email"
-              />
-            </div>
-            <div className="flex flex-col gap-3 w-full">
-              <button className="w-full h-12 rounded-full bg-[#21c55e] hover:bg-primary-hover text-white text-base font-semibold transition-all shadow-sm flex items-center justify-center">
-                Join as an Instructor
-              </button>
-              <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-border-light"></div>
-                <span className="flex-shrink-0 mx-4 text-neutral-mid text-sm">
-                  or
-                </span>
-                <div className="flex-grow border-t border-border-light"></div>
+          {!isLoggedIn && (
+            <div className="w-full max-w-md space-y-4">
+              <div className="bg-neutral-light/50 p-1 rounded-lg border border-border-light mb-6 flex items-center gap-2 pl-3">
+                <Mail className="w-5 h-5 text-neutral-mid" />
+                <input
+                  className="w-full bg-transparent border-none focus:ring-0 text-neutral-dark text-sm p-2 placeholder:text-neutral-mid/70"
+                  placeholder="Email or phone"
+                  type="email"
+                />
               </div>
-              <button className="w-full h-12 rounded-full bg-white border border-neutral-dark/20 hover:bg-neutral-light text-neutral-dark text-base font-semibold transition-all flex items-center justify-center">
-                Join as a Studio
-              </button>
+              <div className="flex flex-col gap-3 w-full">
+                <button className="w-full h-12 rounded-full bg-[#21c55e] hover:bg-primary-hover text-white text-base font-semibold transition-all shadow-sm flex items-center justify-center">
+                  Join as an Instructor
+                </button>
+                <div className="relative flex py-2 items-center">
+                  <div className="flex-grow border-t border-border-light"></div>
+                  <span className="flex-shrink-0 mx-4 text-neutral-mid text-sm">
+                    or
+                  </span>
+                  <div className="flex-grow border-t border-border-light"></div>
+                </div>
+                <button className="w-full h-12 rounded-full bg-white border border-neutral-dark/20 hover:bg-neutral-light text-neutral-dark text-base font-semibold transition-all flex items-center justify-center">
+                  Join as a Studio
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right Content */}

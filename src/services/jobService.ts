@@ -320,6 +320,7 @@ export async function applyToJob(
     await setDoc(applicationRef, {
       ...application,
       applied_at: serverTimestamp(),
+      ...(message !== undefined && { message }),
     });
 
     return applicationRef.id;
@@ -352,6 +353,7 @@ export async function inviteToJob(
     await setDoc(applicationRef, {
       ...application,
       applied_at: serverTimestamp(),
+      ...(message !== undefined && { message }),
     });
 
     return applicationRef.id;

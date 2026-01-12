@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { ChevronDown, X, Search } from "lucide-react";
 import { fitnessStyles } from "@/constants";
-import { studios } from "@/data";
+import { Profile } from "@/types";
 
 interface FilterSidebarProps {
   onFilterChange: (filters: any) => void;
+  studios?: Profile[];
 }
 
-export default function FilterSidebar({ onFilterChange }: FilterSidebarProps) {
+export default function FilterSidebar({ onFilterChange, studios = [] }: FilterSidebarProps) {
   const [filters, setFilters] = useState({
     search: "",
     location: [] as string[],

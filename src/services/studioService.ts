@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase";
 import { Profile, StudioClaimToken, StudioDetails, StudioProfileSetup } from "@/types";
+import { uploadBase64ToCloudinary } from "@/lib/cloudinary";
 import { uploadBase64ToStorage } from "@/lib/uploadToStorage";
 
 // Collections
@@ -204,7 +205,7 @@ export async function saveStudioProfileSetup(
 }
 
 /**
- * Upload studio setup images to Firebase Storage
+ * Upload studio setup images to Cloudinary
  */
 async function uploadStudioSetupImages(
   studioId: string,
@@ -215,9 +216,11 @@ async function uploadStudioSetupImages(
   try {
     // Upload logo if it's base64
     if (updatedProfile.logo && updatedProfile.logo.startsWith("data:image")) {
-      const logoPath = `studios/${studioId}/logo_${Date.now()}.jpg`;
-      const logoURL = await uploadBase64ToStorage(updatedProfile.logo, logoPath);
-      updatedProfile.logo = logoURL;
+      const result = await uploadBase64ToCloudinary(
+        updatedProfile.logo,
+        `studios/${studioId}/logo`
+      );
+      updatedProfile.logo = result.secure_url;
     }
 
     // Upload gallery photos if they're base64 strings
@@ -227,9 +230,11 @@ async function uploadStudioSetupImages(
       for (let i = 0; i < updatedProfile.gallery_photos.length; i++) {
         const photo = updatedProfile.gallery_photos[i];
         if (photo.startsWith("data:image")) {
-          const photoPath = `studios/${studioId}/gallery/photo_${Date.now()}_${i}.jpg`;
-          const photoURL = await uploadBase64ToStorage(photo, photoPath);
-          uploadedPhotos.push(photoURL);
+          const result = await uploadBase64ToCloudinary(
+            photo,
+            `studios/${studioId}/gallery`
+          );
+          uploadedPhotos.push(result.secure_url);
         } else {
           uploadedPhotos.push(photo);
         }

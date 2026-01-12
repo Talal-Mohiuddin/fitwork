@@ -9,7 +9,7 @@ import { getStudioProfileSetup, saveStudioProfileSetup } from "@/services/studio
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Eye, FileText, Loader2 } from "lucide-react";
+import { Check, Eye, FileText, Loader2, Building2, MapPin, Dumbbell, Music, DollarSign, Image } from "lucide-react";
 
 // Section Components
 import IdentityBrandSection from "./_components/IdentityBrandSection";
@@ -102,37 +102,37 @@ export default function StudioProfileSetupPage() {
       {
         key: 'identity',
         label: 'Identity',
-        icon: '✓',
+        icon: 'Building2',
         completed: !!(profile.logo && profile.studio_name && profile.about_studio),
       },
       {
         key: 'contact',
         label: 'Contact & Location',
-        icon: '📍',
+        icon: 'MapPin',
         completed: !!(profile.street_address && profile.city && profile.state && profile.zip_code),
       },
       {
         key: 'class_styles',
         label: 'Class Styles',
-        icon: '🏋️',
+        icon: 'Dumbbell',
         completed: !!(profile.class_types && profile.class_types.length > 0),
       },
       {
         key: 'instructor_exp',
         label: 'Instructor Info',
-        icon: '👨‍🏫',
+        icon: 'Music',
         completed: !!(profile.music_policy && profile.tools_equipment && profile.tools_equipment.length > 0),
       },
       {
         key: 'compensation',
         label: 'Compensation',
-        icon: '💰',
+        icon: 'DollarSign',
         completed: !!(profile.base_pay_min && profile.base_pay_max && profile.pay_model),
       },
       {
         key: 'gallery',
         label: 'Gallery',
-        icon: '📸',
+        icon: 'Image',
         completed: !!(profile.gallery_photos && profile.gallery_photos.length > 0),
       },
     ];
@@ -229,24 +229,39 @@ export default function StudioProfileSetupPage() {
               <p className="text-sm text-gray-600 mb-4">Complete all sections to publish</p>
               
               <div className="space-y-3 mb-6">
-                {sections.map((section) => (
-                  <button
-                    key={section.key}
-                    onClick={() => setActiveSection(section.key)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                      activeSection === section.key
-                        ? 'bg-green-50 border-2 border-green-500'
-                        : 'bg-gray-50 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className={`w-6 h-6 rounded flex items-center justify-center ${
-                      section.completed ? 'bg-green-500 text-white' : 'bg-gray-300'
-                    }`}>
-                      {section.completed ? <Check className="w-4 h-4" /> : section.icon}
-                    </div>
-                    <span className="text-sm font-medium text-left">{section.label}</span>
-                  </button>
-                ))}
+                {sections.map((section) => {
+                  const IconComponent = {
+                    Building2,
+                    MapPin,
+                    Dumbbell,
+                    Music,
+                    DollarSign,
+                    Image,
+                  }[section.icon];
+                  
+                  return (
+                    <button
+                      key={section.key}
+                      onClick={() => setActiveSection(section.key)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                        activeSection === section.key
+                          ? 'bg-green-50 border-2 border-green-500'
+                          : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className={`w-6 h-6 rounded flex items-center justify-center ${
+                        section.completed ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-600'
+                      }`}>
+                        {section.completed ? (
+                          <Check className="w-4 h-4" />
+                        ) : IconComponent ? (
+                          <IconComponent className="w-4 h-4" />
+                        ) : null}
+                      </div>
+                      <span className="text-sm font-medium text-left">{section.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="space-y-2">

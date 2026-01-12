@@ -5,6 +5,7 @@ import { StudioProfileSetup } from "@/types";
 import { Label } from "@/components/ui/label";
 import { Check, Upload, X, Image as ImageIcon } from "lucide-react";
 import Image from "next/image";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 interface StudioGallerySectionProps {
   profile: StudioProfileSetup;
@@ -17,41 +18,49 @@ export default function StudioGallerySection({
 }: StudioGallerySectionProps) {
   const [uploading, setUploading] = useState(false);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     setUploading(true);
     const newImages: string[] = [];
-    let processed = 0;
+    const uploadPromises: Promise<void>[] = [];
 
     Array.from(files).forEach((file) => {
       // Validate file size (max 5MB per image)
       if (file.size > 5 * 1024 * 1024) {
         alert(`${file.name} is too large. Max size is 5MB.`);
-        processed++;
-        if (processed === files.length) setUploading(false);
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        newImages.push(base64String);
-        processed++;
-
-        if (processed === files.length) {
-          const currentPhotos = profile.gallery_photos || [];
-          const updatedPhotos = [...currentPhotos, ...newImages];
-          updateProfile({
-            gallery_photos: updatedPhotos,
-            images: updatedPhotos, // Also update the images field
-          });
-          setUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
+      const uploadPromise = uploadToCloudinary(file, `studios/${profile.id}/gallery`)
+        .then((result) => {
+          newImages.push(result.secure_url);
+        })
+        .catch((error) => {
+          console.error(`Error uploading ${file.name}:`, error);
+          alert(`Failed to upload ${file.name}`);
+        });
+      
+      uploadPromises.push(uploadPromise);
     });
+
+    try {
+      await Promise.all(uploadPromises);
+      
+      if (newImages.length > 0) {
+        const currentPhotos = profile.gallery_photos || [];
+        const updatedPhotos = [...currentPhotos, ...newImages];
+        updateProfile({
+          gallery_photos: updatedPhotos,
+          images: updatedPhotos,
+        });
+      }
+    } catch (error) {
+      console.error("Error uploading images:", error);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeImage = (index: number) => {

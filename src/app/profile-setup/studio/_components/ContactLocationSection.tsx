@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { StudioProfileSetup } from "@/types";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Check, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Check, MapPin, Loader2, Navigation } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -27,6 +28,59 @@ const US_STATES = [
 ];
 
 export default function ContactLocationSection({ profile, updateProfile }: ContactLocationSectionProps) {
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  // Get current location using browser's geolocation API
+  const getCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setLoadingLocation(true);
+    try {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Reverse geocode to get address
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            const data = await response.json();
+            
+            if (data.address) {
+              updateProfile({
+                street_address: `${data.address.road || ''} ${data.address.house_number || ''}`.trim(),
+                city: data.address.city || data.address.town || data.address.village || '',
+                state: data.address.state?.substring(0, 2).toUpperCase() || '',
+                zip_code: data.address.postcode || '',
+                coordinates: { lat: latitude, lng: longitude },
+              });
+            }
+          } catch (error) {
+            console.error("Error reverse geocoding:", error);
+            // Still save coordinates even if reverse geocoding fails
+            updateProfile({
+              coordinates: { lat: latitude, lng: longitude },
+            });
+          } finally {
+            setLoadingLocation(false);
+          }
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          alert("Unable to retrieve your location. Please enter manually.");
+          setLoadingLocation(false);
+        }
+      );
+    } catch (error) {
+      console.error("Error:", error);
+      setLoadingLocation(false);
+    }
+  };
+
   // Geocode address when all fields are filled
   useEffect(() => {
     if (profile.street_address && profile.city && profile.state && profile.zip_code) {
@@ -56,6 +110,29 @@ export default function ContactLocationSection({ profile, updateProfile }: Conta
           {isCompleted && <Check className="w-4 h-4" />}
         </div>
         <h2 className="text-2xl font-semibold">Contact & Location</h2>
+      </div>
+
+      {/* Use Current Location Button */}
+      <div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={getCurrentLocation}
+          disabled={loadingLocation}
+          className="mb-4"
+        >
+          {loadingLocation ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Getting location...
+            </>
+          ) : (
+            <>
+              <Navigation className="w-4 h-4 mr-2" />
+              Use Current Location
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Street Address */}
@@ -95,7 +172,7 @@ export default function ContactLocationSection({ profile, updateProfile }: Conta
             onValueChange={(value) => updateProfile({ state: value })}
           >
             <SelectTrigger id="state">
-              <SelectValue placeholder="CA" />
+              <SelectValue placeholder="Select state" />
             </SelectTrigger>
             <SelectContent>
               {US_STATES.map((state) => (

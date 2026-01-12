@@ -14,9 +14,17 @@ export default function JobCard({ job }: { job: JobWithStudio }) {
 
   // Calculate match percentage (mock calculation based on styles)
   const matchPercentage = Math.floor(Math.random() * (98 - 85 + 1) + 85);
-  const isUrgent = formatDistanceToNow(new Date(job.created_at)).includes(
-    "less than"
-  );
+  
+  // Safely check if job is urgent by validating date first
+  let isUrgent = false;
+  try {
+    const createdDate = new Date(job.created_at);
+    if (!isNaN(createdDate.getTime())) {
+      isUrgent = formatDistanceToNow(createdDate).includes("less than");
+    }
+  } catch (error) {
+    console.error("Error parsing date:", job.created_at);
+  }
 
   return (
     <>
@@ -102,7 +110,17 @@ export default function JobCard({ job }: { job: JobWithStudio }) {
             <div className="flex flex-wrap gap-y-2 gap-x-4 text-sm text-gray-600 dark:text-gray-300">
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                <span>{new Date(job.start_date).toLocaleDateString()}</span>
+                <span>
+                  {(() => {
+                    try {
+                      const startDate = new Date(job.start_date);
+                      return !isNaN(startDate.getTime()) ? startDate.toLocaleDateString() : "Date TBD";
+                    } catch (error) {
+                      console.error("Error parsing start date:", job.start_date);
+                      return "Date TBD";
+                    }
+                  })()}
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <DollarSign className="w-4 h-4 text-gray-600 dark:text-gray-400" />

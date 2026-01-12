@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Check, Upload, X } from "lucide-react";
+import { Check, Upload, X, Loader2 } from "lucide-react";
 import Image from "next/image";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 interface IdentityBrandSectionProps {
   profile: StudioProfileSetup;
@@ -16,8 +17,9 @@ interface IdentityBrandSectionProps {
 
 export default function IdentityBrandSection({ profile, updateProfile }: IdentityBrandSectionProps) {
   const [logoPreview, setLogoPreview] = useState<string | null>(profile.logo || null);
+  const [uploading, setUploading] = useState(false);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file size (max 2MB)
@@ -26,13 +28,25 @@ export default function IdentityBrandSection({ profile, updateProfile }: Identit
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setLogoPreview(base64String);
-        updateProfile({ logo: base64String });
-      };
-      reader.readAsDataURL(file);
+      setUploading(true);
+      try {
+        // Show preview immediately
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setLogoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        // Upload to Cloudinary
+        const result = await uploadToCloudinary(file, `studios/${profile.id}/logo`);
+        updateProfile({ logo: result.secure_url });
+      } catch (error) {
+        console.error("Error uploading logo:", error);
+        alert("Failed to upload logo. Please try again.");
+        setLogoPreview(null);
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
@@ -68,7 +82,11 @@ export default function IdentityBrandSection({ profile, updateProfile }: Identit
           Studio Logo
         </Label>
         <div className="mt-2">
-          {logoPreview ? (
+          {uploading ? (
+            <div className="w-32 h-32 border-2 border-gray-200 rounded-lg flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          ) : logoPreview ? (
             <div className="relative w-32 h-32 border-2 border-gray-200 rounded-lg overflow-hidden">
               <Image
                 src={logoPreview}
@@ -106,8 +124,9 @@ export default function IdentityBrandSection({ profile, updateProfile }: Identit
           size="sm"
           className="mt-3"
           onClick={() => document.getElementById('logo-upload')?.click()}
+          disabled={uploading}
         >
-          Choose File
+          {uploading ? 'Uploading...' : 'Choose File'}
         </Button>
       </div>
 

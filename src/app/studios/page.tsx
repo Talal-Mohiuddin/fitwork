@@ -1,18 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, Grid3x3, List } from "lucide-react";
-import { studios } from "@/data";
+import { useState, useEffect } from "react";
+import { ChevronDown, Grid3x3, List, Loader2 } from "lucide-react";
 import StudioCard from "./_components/StudioCard";
 import FilterSidebar from "./_components/FilterSidebar";
+import { getStudios } from "@/services/studioService";
+import { Profile } from "@/types";
 
 export default function StudiosPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filteredStudios, setFilteredStudios] = useState(studios);
+  const [allStudios, setAllStudios] = useState<Profile[]>([]);
+  const [filteredStudios, setFilteredStudios] = useState<Profile[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch studios from Firebase
+  useEffect(() => {
+    const fetchStudios = async () => {
+      try {
+        setLoading(true);
+        const { studios } = await getStudios({ sortBy: "recent" });
+        setAllStudios(studios);
+        setFilteredStudios(studios);
+      } catch (err) {
+        console.error("Error fetching studios:", err);
+        setError("Failed to load studios. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStudios();
+  }, []);
 
   const handleFilterChange = (filters: any) => {
-    let filtered = [...studios];
+    let filtered = [...allStudios];
 
     if (filters.search) {
       const search = filters.search.toLowerCase();
@@ -70,7 +93,7 @@ export default function StudiosPage() {
   return (
     <div className="flex flex-1 overflow-hidden h-[calc(100vh-65px)] max-w-7xl mx-auto">
       {/* Sidebar Filters */}
-      <FilterSidebar onFilterChange={handleFilterChange} />
+      <FilterSidebar onFilterChange={handleFilterChange} studios={allStudios} />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
@@ -137,21 +160,42 @@ export default function StudiosPage() {
         {/* Scrollable Grid Area */}
         <div className="flex-1 overflow-y-auto px-6 pb-10 lg:px-10 custom-scrollbar">
           <div className="w-full max-w-[1400px] mx-auto">
-            <div
-              className={
-                viewMode === "grid"
-                  ? "grid grid-cols-1 md:grid-cols-3 gap-6 pt-4"
-                  : "flex flex-col gap-4 pt-4"
-              }
-            >
-              {filteredStudios.map((studio) => (
-                <StudioCard
-                  key={studio.id}
-                  studio={studio}
-                  viewMode={viewMode}
-                />
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <p className="text-red-500 mb-4">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-primary text-[#111813] rounded-lg font-bold hover:bg-primary-hover transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredStudios.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <p className="text-text-muted text-lg mb-2">No studios found</p>
+                <p className="text-text-muted text-sm">Try adjusting your filters</p>
+              </div>
+            ) : (
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 md:grid-cols-3 gap-6 pt-4"
+                    : "flex flex-col gap-4 pt-4"
+                }
+              >
+                {filteredStudios.map((studio) => (
+                  <StudioCard
+                    key={studio.id}
+                    studio={studio}
+                    viewMode={viewMode}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
