@@ -1,7 +1,7 @@
 "use client";
 
 import { JobPostingData } from "@/types";
-import { MapPin, Calendar, DollarSign, FileText, Globe, Users, Edit2, Lightbulb } from "lucide-react";
+import { MapPin, DollarSign, FileText, Globe, Users, Edit2, Lightbulb } from "lucide-react";
 
 interface StepReviewProps {
   formData: JobPostingData;

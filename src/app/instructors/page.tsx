@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { ChevronDown, Grid3x3, List, RefreshCw, Users } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import InstructorCard from "./_components/InstructorCard";
 import FilterSidebar from "./_components/FilterSidebar";
 import InviteModal from "./_components/InviteModal";
@@ -9,16 +10,34 @@ import { Profile } from "@/types";
 import { getInstructors, subscribeToInstructors, InstructorFilters } from "@/services/talentService";
 import { Button } from "@/components/ui/button";
 
-export default function InstructorsPage() {
+function InstructorsContent() {
+  const searchParams = useSearchParams();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [instructors, setInstructors] = useState<Profile[]>([]);
   const [filteredInstructors, setFilteredInstructors] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [filters, setFilters] = useState<InstructorFilters>({});
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [selectedInstructor, setSelectedInstructor] = useState<Profile | null>(null);
+
+  useEffect(() => {
+    const styleParam = searchParams.get("styles");
+    const certParam = searchParams.get("certifications");
+    const newFilters: InstructorFilters = {};
+
+    if (styleParam) {
+      newFilters.styles = styleParam.split(",").map(s => s.trim());
+    }
+    
+    if (certParam) {
+      newFilters.certifications = certParam.split(",").map(s => s.trim());
+    }
+    
+    if (Object.keys(newFilters).length > 0) {
+       setFilters(prev => ({ ...prev, ...newFilters }));
+    }
+  }, [searchParams]);
 
   const handleInvite = (instructor: Profile) => {
     setSelectedInstructor(instructor);
@@ -292,5 +311,13 @@ export default function InstructorsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function InstructorsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <InstructorsContent />
+    </Suspense>
   );
 }

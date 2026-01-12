@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { InstructorProfile } from "./_components/instructor-profile";
 import { getInstructorProfile } from "@/services/instructorProfileService";
 import { Profile } from "@/types";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { useAuth } from "@/store/firebase-auth-provider";
 
 export default function InstructorPage() {
   const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
   const instructorId = params.id as string;
   const [instructor, setInstructor] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,6 +22,15 @@ export default function InstructorPage() {
       try {
         setLoading(true);
         const profile = await getInstructorProfile(instructorId);
+        
+        // Check if this is the current user viewing their own profile
+        if (user && user.uid === instructorId) {
+          if (!profile || !profile.profile_completed) {
+            router.push("/profile-setup/instructor");
+            return;
+          }
+        }
+        
         setInstructor(profile);
       } catch (err) {
         console.error("Error fetching instructor:", err);
@@ -29,9 +41,11 @@ export default function InstructorPage() {
     };
 
     if (instructorId) {
-      fetchInstructor();
+      if (user !== undefined) { // Wait for auth check to complete (user is null or object)
+         fetchInstructor();
+      }
     }
-  }, [instructorId]);
+  }, [instructorId, user, router]);
 
   if (loading) {
     return (

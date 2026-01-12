@@ -41,12 +41,8 @@ export default function MessageInput({
 
         {/* Toolbar */}
         <div className="flex justify-between items-center px-1 pb-1">
-          {/* Action buttons */}
-          <div className="flex gap-1">
-            <ToolbarButton icon={<Paperclip size={20} />} title="Attach File" />
-            <ToolbarButton icon={<ImageIcon size={20} />} title="Add Image" />
-            <ToolbarButton icon={<Smile size={20} />} title="Emoji" />
-          </div>
+          {/* Action buttons - Removed per request */}
+          <div className="flex gap-1" />
 
           <div className="flex items-center gap-3">
             {/* Quick Action */}

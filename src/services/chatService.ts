@@ -29,7 +29,6 @@ import {
 // Collections
 const CONVERSATIONS_COLLECTION = "conversations";
 const MESSAGES_COLLECTION = "messages";
-const PROFILES_COLLECTION = "profiles";
 const STUDIOS_COLLECTION = "studios";
 const INSTRUCTORS_COLLECTION = "instructors";
 
@@ -68,11 +67,11 @@ export async function getOrCreateConversation(
       participantDetails: {
         [userId1]: {
           ...user1Details,
-          avatar: user1Details.avatar || null,
+          avatar: user1Details.avatar || undefined,
         },
         [userId2]: {
           ...user2Details,
-          avatar: user2Details.avatar || null,
+          avatar: user2Details.avatar || undefined,
         },
       },
       unreadCount: {
@@ -114,13 +113,13 @@ export async function sendMessage(
     // Sanitize optional fields in nested objects to prevent "undefined" errors
     const sanitizedJobOffer = jobOffer ? {
       ...jobOffer,
-      endTime: jobOffer.endTime || null,
-      classType: jobOffer.classType || null,
+      endTime: jobOffer.endTime || undefined,
+      classType: jobOffer.classType || undefined,
     } : undefined;
 
     const sanitizedGigInvite = gigInvite ? {
       ...gigInvite,
-      description: gigInvite.description || null,
+      description: gigInvite.description || undefined,
     } : undefined;
 
     // Create message

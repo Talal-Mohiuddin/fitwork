@@ -210,6 +210,22 @@ export function InstructorProfile({ instructor }: InstructorProfileProps) {
                 <Button
                   variant="outline"
                   className="w-full md:w-auto gap-2 bg-transparent"
+                  onClick={async () => {
+                    if (navigator.share) {
+                      try {
+                        await navigator.share({
+                          title: instructor.full_name || "Instructor Profile",
+                          text: `Check out ${instructor.full_name}'s profile on Fitgig`,
+                          url: window.location.href,
+                        });
+                      } catch (err) {
+                        console.error("Error sharing:", err);
+                      }
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                      toast.success("Profile link copied to clipboard");
+                    }
+                  }}
                 >
                   <Share2 className="w-4 h-4" />
                   Share Profile

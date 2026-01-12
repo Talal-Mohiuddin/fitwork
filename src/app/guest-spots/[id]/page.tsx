@@ -35,6 +35,7 @@ import {
   getGuestSpotApplicationStatus,
 } from "@/services/guestSpotService";
 import { useAuth } from "@/store/firebase-auth-provider";
+import { toast } from "sonner";
 
 const durationLabels: Record<string, string> = {
   single_class: "Single Class",
@@ -98,7 +99,18 @@ export default function GuestSpotDetailPage() {
     }
 
     if (!profile.profile_completed) {
-      setError("Please complete your profile before applying");
+      const missingFields: string[] = [];
+      if (!profile.bio) missingFields.push("Bio");
+      if (!profile.location) missingFields.push("Location");
+      if (!profile.fitness_styles || profile.fitness_styles.length === 0) missingFields.push("Fitness Styles");
+      if (!profile.experience || profile.experience.length === 0) missingFields.push("Experience");
+      if (!profile.profile_photo) missingFields.push("Profile Photo");
+
+      if (missingFields.length > 0) {
+        setError(`Please complete your profile before applying. Missing: ${missingFields.join(", ")}`);
+      } else {
+        setError("Please complete your profile details before applying");
+      }
       return;
     }
 
@@ -472,8 +484,21 @@ export default function GuestSpotDetailPage() {
               <Button
                 variant="outline"
                 className="w-full mt-4"
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
+                onClick={async () => {
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: guestSpot.title,
+                        text: `Check out this guest spot at ${guestSpot.studio.name}`,
+                        url: window.location.href,
+                      });
+                    } catch (err) {
+                      console.log("Error sharing:", err);
+                    }
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    toast.success("Link copied to clipboard!");
+                  }
                 }}
               >
                 <Share2 className="w-4 h-4 mr-2" />

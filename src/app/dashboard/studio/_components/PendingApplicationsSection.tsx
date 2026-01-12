@@ -113,7 +113,7 @@ export default function PendingApplicationsSection({ studioId }: PendingApplicat
       {applications.length === 0 ? (
         <div className="bg-surface-light dark:bg-surface-dark p-8 rounded-xl border border-border-light dark:border-border-dark text-center">
           <p className="text-text-sub dark:text-gray-400 mb-2">No pending applications</p>
-          <Link href="/jobs/post" className="text-primary text-sm font-medium hover:underline">
+          <Link href="/jobs/post/wizard" className="text-primary text-sm font-medium hover:underline">
             Post a job to get applicants
           </Link>
         </div>

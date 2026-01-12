@@ -19,14 +19,19 @@ import {
   Eye,
   MessageSquare,
   Loader2,
+  Globe,
+  Instagram,
+  Facebook,
+  Check,
+  Building
 } from "lucide-react";
 import { useAuth } from "@/store/firebase-auth-provider";
-import { getInstructorProfile } from "@/services/instructorProfileService";
+import { getStudioById } from "@/services/studioService";
 import type { Profile } from "@/types";
 import { getOptimizedCloudinaryUrl } from "@/lib/cloudinary";
 import { toast } from "sonner";
 
-export default function InstructorProfilePage() {
+export default function StudioProfilePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -43,16 +48,16 @@ export default function InstructorProfilePage() {
       }
 
       try {
-        const instructorProfile = await getInstructorProfile(user.uid);
+        const studioProfile = await getStudioById(user.uid);
         
-        if (!instructorProfile) {
+        if (!studioProfile) {
           // No profile exists, redirect to setup
-          router.push("/profile-setup/instructor");
+          router.push("/profile-setup/studio");
           return;
         }
 
-        console.log("Fetched instructor profile:", instructorProfile);
-        setProfile(instructorProfile);
+        console.log("Fetched studio profile:", studioProfile);
+        setProfile(studioProfile);
       } catch (err) {
         console.error("Error fetching profile:", err);
         setError("Failed to load profile");
@@ -81,7 +86,7 @@ export default function InstructorProfilePage() {
         <div className="text-center">
           <p className="text-red-500 mb-4">{error}</p>
           <button
-            onClick={() => router.push("/profile-setup/instructor")}
+            onClick={() => router.push("/profile-setup/studio")}
             className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
           >
             Set Up Profile
@@ -98,6 +103,11 @@ export default function InstructorProfilePage() {
   const profilePhotoUrl = profile.profile_photo
     ? getOptimizedCloudinaryUrl(profile.profile_photo, { width: 300, height: 300 })
     : null;
+    
+  // Use first image from images array as cover if no specific cover field exists
+  const coverImageUrl = profile.images && profile.images.length > 0 
+    ? getOptimizedCloudinaryUrl(profile.images[0], { width: 1200, height: 400 })
+    : null;
 
   const isProfileComplete = profile.profile_completed;
 
@@ -107,10 +117,10 @@ export default function InstructorProfilePage() {
       <div className="relative">
         {/* Cover Image / Gradient Background */}
         <div className="h-48 md:h-64 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700">
-          {profile.gallery_images && profile.gallery_images.length > 0 && (
+          {coverImageUrl && (
             <div 
-              className="absolute inset-0 bg-cover bg-center opacity-30"
-              style={{ backgroundImage: `url(${profile.gallery_images[0]})` }}
+              className="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-overlay"
+              style={{ backgroundImage: `url(${coverImageUrl})` }}
             />
           )}
         </div>
@@ -120,20 +130,18 @@ export default function InstructorProfilePage() {
           <div className="relative -mt-24 md:-mt-32">
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 md:p-8">
               <div className="flex flex-col md:flex-row gap-6">
-                {/* Profile Photo */}
+                {/* Profile Photo (Logo) */}
                 <div className="flex-shrink-0">
                   <div className="relative">
                     {profilePhotoUrl ? (
                       <img
                         src={profilePhotoUrl}
-                        alt={profile.full_name || "Profile"}
+                        alt={profile.name || "Studio Logo"}
                         className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover border-4 border-white dark:border-slate-800 shadow-lg"
                       />
                     ) : (
                       <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center border-4 border-white dark:border-slate-800 shadow-lg">
-                        <span className="text-4xl md:text-5xl font-bold text-emerald-600">
-                          {profile.full_name?.charAt(0) || "?"}
-                        </span>
+                        <Building size={48} className="text-emerald-500" />
                       </div>
                     )}
                     {isProfileComplete && (
@@ -149,10 +157,10 @@ export default function InstructorProfilePage() {
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
                       <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
-                        {profile.full_name || "Your Name"}
+                        {profile.name || "Studio Name"}
                       </h1>
                       <p className="text-lg text-slate-600 dark:text-slate-300 mt-1">
-                        {profile.headline || "Fitness Instructor"}
+                        {profile.tagline || (profile.user_type === 'studio' ? "Fitness Studio" : "Fitness Professional")}
                       </p>
                       {profile.location && (
                         <div className="flex items-center gap-2 mt-2 text-slate-500">
@@ -160,20 +168,39 @@ export default function InstructorProfilePage() {
                           <span>{profile.location}</span>
                         </div>
                       )}
+                      
+                      {/* Social Links */}
+                      <div className="flex gap-4 mt-4">
+                        {profile.website && (
+                          <a href={profile.website} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-emerald-500 transition-colors">
+                            <Globe size={20} />
+                          </a>
+                        )}
+                        {profile.instagram && (
+                          <a href={`https://instagram.com/${profile.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-pink-500 transition-colors">
+                            <Instagram size={20} />
+                          </a>
+                        )}
+                        {profile.facebook && (
+                          <a href={profile.facebook} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
+                            <Facebook size={20} />
+                          </a>
+                        )}
+                      </div>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex gap-3">
                       <button
-                        onClick={() => router.push("/profile-setup/instructor")}
+                        onClick={() => router.push("/profile-setup/studio")}
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
                       >
                         <Edit2 size={16} />
                         Edit Profile
                       </button>
                       <button 
-                         onClick={() => {
-                          const url = `${window.location.origin}/instructors/${profile.id}`;
+                        onClick={() => {
+                          const url = `${window.location.origin}/studios/${profile.id}`;
                           navigator.clipboard.writeText(url);
                           toast.success("Profile link copied to clipboard");
                         }}
@@ -181,9 +208,9 @@ export default function InstructorProfilePage() {
                       >
                         <Share2 size={20} className="text-slate-600 dark:text-slate-400" />
                       </button>
-                      <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                      {/* <button className="p-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                         <Settings size={20} className="text-slate-600 dark:text-slate-400" />
-                      </button>
+                      </button> */}
                     </div>
                   </div>
 
@@ -210,13 +237,7 @@ export default function InstructorProfilePage() {
                       </span>
                       <span className="text-slate-500">Views</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="text-emerald-500" size={20} />
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {profile.years_of_experience || profile.experience_years || 0}
-                      </span>
-                      <span className="text-slate-500">Years Experience</span>
-                    </div>
+                    {/* Add any other relevant stats for studios */}
                   </div>
                 </div>
               </div>
@@ -232,21 +253,21 @@ export default function InstructorProfilePage() {
           <div className="lg:col-span-2 space-y-6">
             {/* About Section */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">About</h2>
-              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                {profile.bio || "No bio added yet. Edit your profile to add a bio."}
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">About the Studio</h2>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                {profile.description || "No description added yet. Edit your profile to tell instructors about your studio."}
               </p>
             </div>
 
-            {/* Fitness Styles */}
-            {profile.fitness_styles && profile.fitness_styles.length > 0 && (
+            {/* Studio Styles */}
+            {profile.styles && profile.styles.length > 0 && (
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm">
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                   <Dumbbell className="text-emerald-500" size={20} />
-                  Fitness Styles
+                  Studio Styles
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {profile.fitness_styles.map((style, index) => (
+                  {profile.styles.map((style, index) => (
                     <span
                       key={index}
                       className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-sm font-medium"
@@ -258,46 +279,33 @@ export default function InstructorProfilePage() {
               </div>
             )}
 
-            {/* Experience */}
-            {profile.experience && profile.experience.length > 0 && (
+            {/* Amenities */}
+             {profile.amenities && profile.amenities.length > 0 && (
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm">
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Briefcase className="text-emerald-500" size={20} />
-                  Work Experience
+                  <CheckCircle2 className="text-emerald-500" size={20} />
+                  Amenities
                 </h2>
-                <div className="space-y-4">
-                  {profile.experience.map((exp, index) => (
-                    <div
-                      key={index}
-                      className={`relative pl-6 ${
-                        index < profile.experience!.length - 1
-                          ? "pb-4 border-l-2 border-slate-200 dark:border-slate-700"
-                          : ""
-                      }`}
-                    >
-                      <div className="absolute left-[-5px] top-1 w-3 h-3 rounded-full bg-emerald-500" />
-                      <h3 className="font-semibold text-slate-900 dark:text-white">
-                        {exp.title}
-                      </h3>
-                      <p className="text-slate-600 dark:text-slate-400">{exp.company}</p>
-                      <p className="text-sm text-slate-500">{exp.period}</p>
-                      {exp.isActive && (
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs rounded-full">
-                          Current
-                        </span>
-                      )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {profile.amenities.map((amenity, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500">
+                             <Check size={12} />
+                        </div>
+                        <span className="text-slate-700 dark:text-slate-300">{amenity}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
+
             {/* Gallery */}
-            {profile.gallery_images && profile.gallery_images.length > 0 && (
+            {profile.images && profile.images.length > 0 && (
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm">
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Gallery</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {profile.gallery_images.map((img, index) => (
+                  {profile.images.map((img, index) => (
                     <div
                       key={index}
                       className="aspect-square rounded-xl overflow-hidden"
@@ -326,81 +334,66 @@ export default function InstructorProfilePage() {
                     <span className="text-sm">{profile.email}</span>
                   </div>
                 )}
-                {profile.contact_number && (
+                {profile.phone_number && (
                   <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
                     <Phone size={18} className="text-emerald-500" />
-                    <span className="text-sm">{profile.contact_number}</span>
+                    <span className="text-sm">{profile.phone_number}</span>
+                  </div>
+                )}
+                {profile.website && (
+                  <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
+                    <Globe size={18} className="text-emerald-500" />
+                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-sm hover:underline hover:text-emerald-500 truncate">{profile.website}</a>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Certifications */}
-            {profile.certifications && profile.certifications.length > 0 && (
+            {/* Hiring Types */}
+            {profile.hiring_types && profile.hiring_types.length > 0 && (
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Award className="text-emerald-500" size={18} />
-                  Certifications
+                  <Briefcase className="text-emerald-500" size={18} />
+                  Looking For
                 </h2>
                 <div className="space-y-2">
-                  {profile.certifications.map((cert, index) => (
+                  {profile.hiring_types.map((type, index) => (
                     <div
                       key={index}
                       className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg"
                     >
                       <CheckCircle2 size={16} className="text-emerald-500" />
-                      <span className="text-sm text-slate-700 dark:text-slate-300">{cert}</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300 capitalize">{type.replace('_', ' ')}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Availability */}
-            {profile.availability_slots && profile.availability_slots.length > 0 && (
-              <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Clock className="text-emerald-500" size={18} />
-                  Availability
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {profile.availability_slots.map((slot, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-medium"
-                    >
-                      {slot}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Hourly Rate */}
-            {profile.hourly_rate && (
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 shadow-sm text-white">
-                <h2 className="text-lg font-bold mb-2">Hourly Rate</h2>
-                <p className="text-3xl font-bold">${profile.hourly_rate}</p>
-                <p className="text-emerald-100 text-sm mt-1">per hour</p>
-              </div>
-            )}
 
             {/* Quick Actions */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Quick Actions</h2>
               <div className="space-y-2">
                 <button
-                  onClick={() => router.push("/dashboard/instructor")}
+                  onClick={() => router.push("/dashboard/studio")}
                   className="w-full flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Go to Dashboard</span>
                   <ChevronRight size={18} className="text-slate-400" />
                 </button>
                 <button
-                  onClick={() => router.push("/jobs")}
+                  onClick={() => router.push("/instructors")}
                   className="w-full flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Browse Jobs</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Find Instructors</span>
+                  <ChevronRight size={18} className="text-slate-400" />
+                </button>
+                 <button
+                  onClick={() => router.push("/jobs/post")}
+                  className="w-full flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Post a Job</span>
                   <ChevronRight size={18} className="text-slate-400" />
                 </button>
               </div>

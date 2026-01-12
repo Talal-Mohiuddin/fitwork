@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export default function TrustedBySection() {
   return (
     <>
@@ -43,30 +45,30 @@ export default function TrustedBySection() {
           </div>
           <div className="w-full md:w-2/3">
             <div className="flex flex-wrap gap-3">
-              <button className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
+              <Link href="/instructors?styles=Pilates" className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
                 Pilates Instructor
-              </button>
-              <button className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
+              </Link>
+              <Link href="/instructors?styles=Yoga" className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
                 Yoga Teacher
-              </button>
-              <button className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
+              </Link>
+              <Link href="/instructors?styles=Spinning" className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
                 Cycle Instructor
-              </button>
-              <button className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
+              </Link>
+              <Link href="/instructors?certifications=Personal%20Trainer" className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
                 Personal Trainer
-              </button>
-              <button className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
+              </Link>
+              <Link href="/instructors?certifications=Group%20Fitness%20Instructor" className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
                 Group Fitness
-              </button>
-              <button className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
+              </Link>
+              <Link href="/instructors?styles=Barre" className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
                 Barre
-              </button>
-              <button className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
+              </Link>
+              <Link href="/instructors?styles=HIIT" className="px-6 py-3 rounded-full border-2 border-black text-neutral-dark hover:bg-neutral-light bg-transparent font-medium transition-colors text-sm md:text-base">
                 HIIT Coach
-              </button>
-              <button className="px-6 py-3 rounded-full bg-neutral-ligh  font-bold hover:bg-white hover:border-primary transition-colors text-sm md:text-base text-[#21c55e] bg-[#f9fafc]">
+              </Link>
+              <Link href="/instructors" className="px-6 py-3 rounded-full bg-neutral-ligh  font-bold hover:bg-white hover:border-primary transition-colors text-sm md:text-base text-[#21c55e] bg-[#f9fafc]">
                 Show all categories
-              </button>
+              </Link>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { JobPostingData, PayType, EmploymentStatus, CancellationPolicy } from "@/types";
-import { DollarSign, FileText, Clock } from "lucide-react";
+import { FileText, Clock } from "lucide-react";
 
 interface StepPayContractProps {
   formData: JobPostingData;

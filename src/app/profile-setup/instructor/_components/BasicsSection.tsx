@@ -350,6 +350,23 @@ export default function BasicsSection({ profile, onChange }: BasicsSectionProps)
           </select>
         </div>
 
+        {/* Hourly Rate */}
+        <div className="space-y-3">
+          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Standard Hourly Rate ($) <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">$</span>
+            <input
+              type="number"
+              value={profile.hourly_rate || ''}
+              onChange={(e) => handleInputChange('hourly_rate', parseInt(e.target.value) || 0)}
+              placeholder="e.g. 75"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-8 pr-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+            />
+          </div>
+        </div>
+
         {/* Postal Code */}
         <div className="space-y-3">
           <div>

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { CheckCircle, Zap } from "lucide-react";
+import Link from "next/link";
 
 export default function IdealSection() {
   return (
@@ -67,7 +68,10 @@ export default function IdealSection() {
             </div>
           </div>
           <button className="mt-10 px-8 py-3 rounded-full border-2 border-neutral-dark text-neutral-dark font-semibold hover:bg-neutral-light transition-all">
-            Find Talent
+            <Link href={'instructors'}>
+              Find Talent
+            </Link>
+
           </button>
         </div>
       </div>

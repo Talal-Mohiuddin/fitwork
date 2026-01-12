@@ -111,9 +111,9 @@ export default function InviteModal({ isOpen, onClose, instructor }: InviteModal
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-surface-dark rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="relative bg-white dark:bg-surface-dark rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div>
             <h2 className="text-xl font-bold text-text-main dark:text-white">
               Invite to Gig
@@ -131,7 +131,7 @@ export default function InviteModal({ isOpen, onClose, instructor }: InviteModal
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
           {isLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -264,7 +264,7 @@ export default function InviteModal({ isOpen, onClose, instructor }: InviteModal
 
         {/* Footer */}
         {jobs.length > 0 && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30">
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 shrink-0">
             <button
               onClick={onClose}
               className="px-6 py-2.5 text-text-main dark:text-white font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"

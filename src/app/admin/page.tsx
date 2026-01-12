@@ -266,7 +266,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           </Link>
-          <Link href="/jobs/post">
+          <Link href="/jobs/post/wizard">
             <div className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 transition-colors cursor-pointer">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">

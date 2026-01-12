@@ -88,7 +88,7 @@ export default function OpenShiftsSection({ studioId }: OpenShiftsSectionProps) 
       ) : shifts.length === 0 ? (
         <div className="text-center py-10 px-6">
           <p className="text-text-sub dark:text-gray-400 mb-2">No open shifts right now</p>
-          <Link href="/jobs/post" className="text-primary text-sm font-medium hover:underline">
+          <Link href="/jobs/post/wizard" className="text-primary text-sm font-medium hover:underline">
             Post a new gig
           </Link>
         </div>
