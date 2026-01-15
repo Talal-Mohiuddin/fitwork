@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X, Search, Users, Building, LogOut, UserCircle, Plane, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
-import AuthModal from "./auth/auth-modal";
 import { useStore } from "@/store/zustand";
 import { useAuth } from "@/store/firebase-auth-provider";
 import { signOut } from "firebase/auth";
@@ -14,16 +13,9 @@ import type { Profile } from "@/types";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
   const router = useRouter();
   const { user, setUser } = useStore();
   const { user: firebaseUser } = useAuth();
-
-  const openAuthModal = (tab: "login" | "register") => {
-    setAuthModalTab(tab);
-    setIsAuthModalOpen(true);
-  };
 
   const handleSignOut = async () => {
     try {
@@ -137,18 +129,18 @@ export default function Header() {
             </>
           ) : (
             <>
-              <button 
-                onClick={() => openAuthModal("register")}
+              <Link 
+                href="/signup"
                 className="text-gray-500 hover:text-gray-800 text-sm font-semibold px-4 transition-colors"
               >
                 Join now
-              </button>
-              <button 
-                onClick={() => openAuthModal("login")}
+              </Link>
+              <Link 
+                href="/login"
                 className="text-[#21c55e] hover:text-white border border-[#21c55e] hover:bg-[#21c55e] rounded-full text-sm font-semibold px-6 py-2 transition-all"
               >
                 Sign in
-              </button>
+              </Link>
             </>
           )}
         </div>
@@ -239,36 +231,25 @@ export default function Header() {
               </>
             ) : (
               <>
-                <button
-                  onClick={() => {
-                    openAuthModal("register");
-                    setIsMenuOpen(false);
-                  }}
+                <Link
+                  href="/signup"
                   className="block w-full text-left px-4 py-2 text-gray-800 hover:text-[#21c55e]"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Join now
-                </button>
-                <button 
-                  onClick={() => {
-                    openAuthModal("login");
-                    setIsMenuOpen(false);
-                  }}
+                </Link>
+                <Link 
+                  href="/login"
                   className="block w-full text-left px-4 py-2 text-[#21c55e] hover:bg-[#21c55e] hover:text-white"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Sign in
-                </button>
+                </Link>
               </>
             )}
           </div>
         </div>
       )}
-
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)}
-        defaultTab={authModalTab}
-      />
     </header>
   );
 }

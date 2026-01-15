@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { signupAction } from "../action";
-import { Eye, Star } from "lucide-react";
-import React from "react";
+import Link from "next/link";
+import { signupAction, googleSignupAction, createGoogleUserProfile, resendVerificationEmail } from "../action";
+import { Eye, EyeOff, CheckCircle, Mail, ArrowLeft } from "lucide-react";
 import { useStore } from "@/store/zustand";
+import type { mode } from "@/types";
 
 const GoogleIcon = () => (
   <svg
@@ -34,11 +35,18 @@ const GoogleIcon = () => (
   </svg>
 );
 
-export const SignupForm = ({ role }: { role: "instructor" | "studio" }) => {
+type ViewMode = "form" | "verification-sent" | "role-selection";
+
+export const SignupForm = ({ role }: { role: mode }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("form");
+  const [resendLoading, setResendLoading] = useState(false);
   const router = useRouter();
   const { setUser } = useStore();
 
@@ -50,16 +58,31 @@ export const SignupForm = ({ role }: { role: "instructor" | "studio" }) => {
       return;
     }
 
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+
     try {
       setLoading(true);
       const result = await signupAction(email, password, role, {
         full_name: fullName,
       });
-      console.log("Signup result:", result);
+
       if (result.success) {
-        toast.success("Signup successful!");
-        setUser(result.user);
-        router.push("/dashboard"); // Redirect to dashboard or home
+        if (result.requiresEmailVerification) {
+          setViewMode("verification-sent");
+          toast.success("Please check your email to verify your account.");
+        } else if (result.user) {
+          toast.success("Signup successful!");
+          setUser(result.user);
+          router.push(`/profile-setup/${role}`);
+        }
       } else {
         toast.error(result.message);
       }
@@ -71,134 +94,271 @@ export const SignupForm = ({ role }: { role: "instructor" | "studio" }) => {
     }
   };
 
-  return (
-    <div className="relative flex h-screen max-w-7xl w-full overflow-hidden">
-      <div className="flex w-full flex-col justify-between bg-white dark:bg-background-dark px-6 py-8 sm:px-12 md:w-1/2 lg:px-20 xl:px-24 border-r border-slate-100 dark:border-slate-800">
-        <div className="mx-auto flex w-full  flex-col justify-center">
-          <div className="mb-10">
-            <h1 className="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em] mb-3">
-              Create your account
-            </h1>
-            <p className="text-neutral-gray dark:text-slate-400 text-base font-normal leading-normal">
-              Join thousands of fitness professionals earning on their own
-              terms.
-            </p>
+  const handleGoogleSignup = async () => {
+    try {
+      setLoading(true);
+      const result = await googleSignupAction();
+
+      if (result.success) {
+        if (result.requiresRoleSelection) {
+          // New Google user - create profile with the pre-selected role
+          const profileResult = await createGoogleUserProfile(role);
+          if (profileResult.success && profileResult.user) {
+            toast.success("Account created successfully!");
+            setUser(profileResult.user);
+            router.push(`/profile-setup/${role}`);
+          } else {
+            toast.error(profileResult.message);
+          }
+        } else if (result.user) {
+          toast.success("Welcome back! You already have an account.");
+          setUser(result.user);
+          if (!result.user.profile_completed) {
+            router.push(`/profile-setup/${result.user.user_type}`);
+          } else {
+            router.push(`/dashboard/${result.user.user_type}`);
+          }
+        }
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error: any) {
+      toast.error("An error occurred during Google signup.");
+      console.error("Google signup error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      setResendLoading(true);
+      const result = await resendVerificationEmail();
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error: any) {
+      toast.error("Failed to resend verification email.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const roleDisplay = role === "instructor" ? "Instructor" : "Studio";
+
+  // Email Verification Sent View
+  if (viewMode === "verification-sent") {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-white dark:bg-background-dark px-4">
+        <div className="w-full max-w-md text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+            <Mail className="w-10 h-10 text-green-600 dark:text-green-400" />
           </div>
-          <form className="flex flex-col gap-5" onSubmit={handleSignup}>
-            <div className="flex flex-col gap-2">
-              <label className="text-slate-900 dark:text-slate-200 text-sm font-medium leading-normal">
-                Full Name
-              </label>
-              <input
-                className="form-input flex w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 p-[15px] text-base"
-                placeholder="John Doe"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                disabled={loading}
+          
+          <h1 className="text-slate-900 dark:text-white text-2xl font-bold mb-3">
+            Verify your email
+          </h1>
+          
+          <p className="text-neutral-gray dark:text-slate-400 mb-2">
+            We've sent a verification email to:
+          </p>
+          <p className="text-slate-900 dark:text-white font-semibold mb-6">
+            {email}
+          </p>
+          
+          <p className="text-neutral-gray dark:text-slate-400 text-sm mb-8">
+            Click the link in the email to verify your account. Once verified, you can log in and complete your profile.
+          </p>
+          
+          <div className="space-y-4">
+            <Link
+              href="/login"
+              className="w-full h-12 flex items-center justify-center rounded-lg bg-primary text-white font-bold hover:bg-primary-hover transition-all"
+            >
+              Go to Login
+            </Link>
+            
+            <button
+              onClick={handleResendVerification}
+              disabled={resendLoading}
+              className="w-full h-12 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-50"
+            >
+              {resendLoading ? "Sending..." : "Resend verification email"}
+            </button>
+          </div>
+          
+          <p className="mt-8 text-xs text-slate-400 dark:text-slate-500">
+            Didn't receive the email? Check your spam folder or try resending.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Signup Form View
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-white dark:bg-background-dark px-4 py-8">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-8 h-8 text-[#21c55e]">
+            <svg className="w-full h-full" fill="none" viewBox="0 0 48 48">
+              <path
+                clipRule="evenodd"
+                d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z"
+                fill="currentColor"
+                fillRule="evenodd"
               />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-slate-900 dark:text-slate-200 text-sm font-medium leading-normal">
-                Email Address
-              </label>
+            </svg>
+          </div>
+          <span className="text-xl font-bold text-[#21c55e]">Fitgig</span>
+        </div>
+
+        {/* Back button */}
+        <Link
+          href="/signup"
+          className="mb-6 flex items-center gap-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Change role
+        </Link>
+
+        {/* Header */}
+        <div className="mb-8">
+          <div className="inline-block px-3 py-1 mb-3 text-xs font-medium text-primary bg-primary/10 rounded-full">
+            Joining as {roleDisplay}
+          </div>
+          <h1 className="text-slate-900 dark:text-white text-3xl font-bold mb-2">
+            Create your account
+          </h1>
+          <p className="text-neutral-gray dark:text-slate-400 text-base">
+            Join thousands of fitness professionals earning on their own terms.
+          </p>
+        </div>
+
+        {/* Signup Form */}
+        <form onSubmit={handleSignup} className="space-y-5">
+          <div className="flex flex-col gap-2">
+            <label className="text-slate-900 dark:text-slate-200 text-sm font-medium">
+              Full Name
+            </label>
+            <input
+              className="flex w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 px-4 text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              placeholder="John Doe"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-slate-900 dark:text-slate-200 text-sm font-medium">
+              Email Address
+            </label>
+            <input
+              className="flex w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 px-4 text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              placeholder="user@example.com"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-slate-900 dark:text-slate-200 text-sm font-medium">
+              Password
+            </label>
+            <div className="relative">
               <input
-                className="form-input flex w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 p-[15px] text-base"
-                placeholder="user@example.com"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-slate-900 dark:text-slate-200 text-sm font-medium leading-normal">
-                Password
-              </label>
-              <input
-                className="form-input flex w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 p-[15px] text-base"
+                className="flex w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 px-4 pr-12 text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 placeholder="••••••••••••"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
               />
-            </div>
-            <button
-              className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-primary px-6 text-base font-bold text-white shadow-md hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-200 disabled:opacity-50"
-              type="submit"
-              disabled={loading}
-            >
-              {loading ? "Signing up..." : "Sign Up"}
-            </button>
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-slate-100 dark:border-slate-700"></div>
-              <span className="flex-shrink-0 mx-4 text-slate-400 dark:text-slate-500 text-sm">
-                Or continue with
-              </span>
-              <div className="flex-grow border-t border-slate-100 dark:border-slate-700"></div>
-            </div>
-            <button
-              className="flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-6 text-base font-medium text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-              type="button"
-            >
-              <GoogleIcon />
-              <span>Google</span>
-            </button>
-          </form>
-          <div className="mt-8 text-center">
-            <p className="text-neutral-gray dark:text-slate-400 text-sm font-normal">
-              Already have an account?{" "}
-              <a
-                className="text-primary font-semibold hover:text-primary-hover hover:underline"
-                href="#"
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
               >
-                Log in
-              </a>
-            </p>
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">Must be at least 6 characters</p>
           </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-slate-900 dark:text-slate-200 text-sm font-medium">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <input
+                className="flex w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-12 px-4 pr-12 text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                placeholder="••••••••••••"
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-12 rounded-lg bg-primary text-white font-bold hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Creating account..." : "Create Account"}
+          </button>
+        </form>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+          <span className="text-xs text-slate-500 dark:text-slate-400">Or continue with</span>
+          <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
         </div>
-        <footer className="text-xs text-slate-400 dark:text-slate-600">
+
+        {/* Google Signup */}
+        <button
+          onClick={handleGoogleSignup}
+          disabled={loading}
+          type="button"
+          className="w-full h-12 flex items-center justify-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <GoogleIcon />
+          <span>Google</span>
+        </button>
+
+        {/* Login link */}
+        <div className="mt-8 text-center">
+          <p className="text-neutral-gray dark:text-slate-400 text-sm">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="text-primary font-semibold hover:text-primary-hover hover:underline"
+            >
+              Log in
+            </Link>
+          </p>
+        </div>
+
+        {/* Footer */}
+        <footer className="mt-8 text-center text-xs text-slate-400 dark:text-slate-600">
           © 2024 Fitgig Platform.
         </footer>
-      </div>
-      <div className="hidden md:flex md:w-1/2 relative bg-slate-100 dark:bg-slate-900">
-        <img
-          alt="Minimalist bright yoga studio space with wooden floor"
-          className="absolute inset-0 h-full w-full object-cover opacity-90 grayscale-[20%]"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3nLlEhz8m0pTtKAD8dxTcjAjH9I0NNTsok7y37aDU6Y9zVFVDSl23d2uZhtRAWqzxDX8nPkOwrQqqGS7n6GtTLWYIVGDYWzcEYhQ-2wZudm1jsV69Z1E_IfV3JNAEsB8sNIGi9NcmwyRnekzijQHIR4rVqwRDmbq6RiZ-KwGMsDZ3KnoKTZNBZlaUS3VIMmAc2UzpDqRLWVsWShUsbM_j_yY2KcDdKJ4A9pYRpox5--qUFfXbvLAhM8gRhTJJRo_iXLqbnfWTj40"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/20 to-transparent"></div>
-        <div className="absolute bottom-0 left-0 right-0 p-12 lg:p-16 text-white">
-          <div className="max-w-md">
-            <div className="mb-6 flex gap-1 text-green-500">
-              <Star className="h-5 w-5" />
-              <Star className="h-5 w-5" />
-              <Star className="h-5 w-5" />
-              <Star className="h-5 w-5" />
-              <Star className="h-5 w-5" />
-            </div>
-            <blockquote className="text-2xl lg:text-3xl font-medium leading-tight tracking-tight mb-6 drop-shadow-sm">
-              "Fitgig made it so easy to start my fitness business. I booked my
-              first class in minutes!"
-            </blockquote>
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-white/30">
-                <img
-                  alt="Profile picture of Elena"
-                  className="h-full w-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkLoPj3E1Bx14q_mXy6yLeMVyrjz2lTE3gHNawI-yBSjGJEZiSJJ8HQHLKlt88AFsYQYtEus-Jya_py6c7hE5Gqj7dVsINFUU_Z4_cCoHHAnYA20vPc0gVf3vdGPIy85MQr9aTzNc3fm9VkzPGKnqd9R61b6hCbCPLgP5Pc9Fz5sgx8YeV5R8-EJgSqP9ddfEEUoWh3ksgGIXv9G4GvYLvPUS6XnBjTPKLAHLhu-_9k52R0i5QoD49WOhoXsdSt50wXlFh4g4c99o"
-                />
-              </div>
-              <div>
-                <p className="font-semibold text-white">Elena S.</p>
-                <p className="text-sm text-white/80">
-                  Pilates Instructor, Stockholm
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
