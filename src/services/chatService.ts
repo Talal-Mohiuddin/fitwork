@@ -151,8 +151,8 @@ export async function sendMessage(
       
       batch.update(conversationRef, {
         lastMessage: {
-          content: type === "job_offer" ? "📋 Job Offer" : 
-                   type === "gig_invite" ? "🎯 Gig Invite" : content,
+          content: type === "job_offer" ? "Job Offer" : 
+                   type === "gig_invite" ? "Gig Invite" : content,
           senderId,
           timestamp: new Date().toISOString(),
           type,
