@@ -117,11 +117,6 @@ function InstructorsContent() {
       filtered = filtered.filter((inst) => inst.open_to_work === currentFilters.openToWork);
     }
 
-    // Open to guest spots filter
-    if (currentFilters.openToGuestSpots !== undefined) {
-      filtered = filtered.filter((inst) => inst.open_to_guest_spots === currentFilters.openToGuestSpots);
-    }
-
     // Touring ready filter
     if (currentFilters.touringReady !== undefined) {
       filtered = filtered.filter((inst) => inst.touring_ready === currentFilters.touringReady);

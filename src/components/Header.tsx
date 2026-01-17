@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Search, Users, Building, LogOut, UserCircle, Plane, MessageSquare } from "lucide-react";
+import { Menu, X, Search, Users, Building, LogOut, UserCircle, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/zustand";
 import { useAuth } from "@/store/firebase-auth-provider";
@@ -84,17 +84,10 @@ export default function Header() {
           </Link>
           <Link
             href="/studios"
-            className="flex flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
+            className="flex border-r-2 pr-4 flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
           >
             <Building className="w-6 h-6 " />
             <span className="text-sm">Studios</span>
-          </Link>
-          <Link
-            href="/guest-spots"
-            className="flex border-r-2 pr-4 flex-col items-center text-gray-500 hover:text-gray-800 transition-colors"
-          >
-            <Plane className="w-6 h-6 " />
-            <span className="text-sm">Guest Spots</span>
           </Link>
           
           {isLoggedIn ? (
@@ -180,13 +173,6 @@ export default function Header() {
             >
               <Building className="w-6 h-6" />
               <span className="text-sm">Studios</span>
-            </Link>
-            <Link
-              href="/guest-spots"
-              className="flex flex-col items-center text-gray-800 hover:text-[#21c55e]"
-            >
-              <Plane className="w-6 h-6" />
-              <span className="text-sm">Guest Spots</span>
             </Link>
           </div>
           <div className="border-t border-gray-200 dark:border-slate-800 py-4">

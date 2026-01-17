@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, Users, Dumbbell, Loader2, Plane } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { AlertCircle, Users, Dumbbell, Loader2 } from 'lucide-react';
 import { getStudioDashboardStats } from '@/services/studioService';
-import { getGuestSpotStats } from '@/services/guestSpotService';
 
 interface StatCard {
   title: string;
@@ -27,12 +26,6 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
       iconBg: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
     },
     {
-      title: 'Guest Spots',
-      value: 0,
-      icon: <Plane size={20} />,
-      iconBg: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
-    },
-    {
       title: 'New Applicants',
       value: 0,
       icon: <Users size={20} />,
@@ -46,23 +39,12 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
     },
   ]);
 
-  useEffect(() => {
-    if (studioId) {
-      loadStats();
-    }
-  }, [studioId]);
-
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     if (!studioId) return;
     
     try {
       setIsLoading(true);
-      const [dashboardData, guestSpotData] = await Promise.all([
-        getStudioDashboardStats(studioId),
-        getGuestSpotStats(studioId),
-      ]);
-      
-      const totalPendingApps = dashboardData.pendingApplications + guestSpotData.pendingApplications;
+      const dashboardData = await getStudioDashboardStats(studioId);
       
       setStats([
         {
@@ -73,14 +55,8 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
           iconBg: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
         },
         {
-          title: 'Guest Spots',
-          value: guestSpotData.openGuestSpots,
-          icon: <Plane size={20} />,
-          iconBg: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
-        },
-        {
           title: 'New Applicants',
-          value: totalPendingApps,
+          value: dashboardData.pendingApplications,
           icon: <Users size={20} />,
           iconBg: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
         },
@@ -96,12 +72,18 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [studioId]);
+
+  useEffect(() => {
+    if (studioId) {
+      loadStats();
+    }
+  }, [studioId, loadStats]);
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        {[1, 2, 3].map((i) => (
           <div
             key={i}
             className="bg-surface-light dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex items-center justify-center h-32"
@@ -114,7 +96,7 @@ export default function StatsCards({ studioId }: StatsCardsProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
       {stats.map((stat) => (
         <div
           key={stat.title}

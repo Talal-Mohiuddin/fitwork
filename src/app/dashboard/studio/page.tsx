@@ -3,14 +3,11 @@
 import React from "react";
 import {
   Plus,
-  Plane,
 } from "lucide-react";
 import StatsCards from "./_components/StatsCards";
 import OpenShiftsSection from "./_components/OpenShiftsSection";
 import PendingApplicationsSection from "./_components/PendingApplicationsSection";
 import YourBenchSection from "./_components/YourBenchSection";
-import GuestSpotsSection from "./_components/GuestSpotsSection";
-import GuestSpotApplicationsSection from "./_components/GuestSpotApplicationsSection";
 import { useAuth } from '@/store/firebase-auth-provider';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -76,13 +73,6 @@ export default function StudioDashboard() {
           </div>
           <div className="flex gap-3">
             <Link
-              href="/guest-spots/post"
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md shadow-orange-500/20 w-fit"
-            >
-              <Plane size={20} />
-              <span>Post Guest Spot</span>
-            </Link>
-            <Link
               href="/jobs/post/wizard"
               className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md shadow-primary/20 w-fit"
             >
@@ -101,12 +91,6 @@ export default function StudioDashboard() {
           <div className="lg:col-span-8 flex flex-col gap-8">
             {/* Open Shifts */}
             <OpenShiftsSection studioId={user?.uid} />
-
-            {/* Guest Spots */}
-            <GuestSpotsSection studioId={user?.uid} />
-
-            {/* Guest Spot Applications */}
-            <GuestSpotApplicationsSection studioId={user?.uid} />
 
             {/* Pending Applications */}
             <PendingApplicationsSection studioId={user?.uid} />

@@ -10,7 +10,7 @@ import IdealSection from "./_components/ideal-section";
 import PostJobSection from "./_components/post-job";
 import { getStudioById, getStudios } from "@/services/studioService";
 import { getInstructorProfile } from "@/services/instructorProfileService";
-import { Loader2, MapPin, BarChart3, Briefcase, Users, Target, Clipboard, Plane } from "lucide-react";
+import { Loader2, MapPin, BarChart3, Briefcase, Users, Target, Clipboard, Building } from "lucide-react";
 import { Profile } from "@/types";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -190,13 +190,13 @@ export default function Home() {
                       <p className="text-text-muted">Manage your career and applications</p>
                     </div>
                   </Link>
-                  <Link href="/guest-spots" className="block">
+                  <Link href="/studios" className="block">
                     <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-8 border border-border-light dark:border-border-dark hover:border-primary transition-all hover:shadow-lg">
-                      <Plane className="w-16 h-16 mb-4 text-primary" />
+                      <Building className="w-16 h-16 mb-4 text-primary" />
                       <h3 className="text-xl font-bold text-text-main dark:text-white mb-2">
-                        Guest Spots
+                        Browse Studios
                       </h3>
-                      <p className="text-text-muted">Teach at studios around the world</p>
+                      <p className="text-text-muted">Explore studios and opportunities</p>
                     </div>
                   </Link>
                 </>

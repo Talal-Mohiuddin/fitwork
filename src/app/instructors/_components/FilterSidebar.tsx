@@ -1,81 +1,92 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, MapPin, Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, MapPin, X } from 'lucide-react';
+import { InstructorFilters } from '@/services/talentService';
 
 interface FilterSidebarProps {
-  onFilterChange: (filters: any) => void;
+  onFilterChange: (filters: Partial<InstructorFilters>) => void;
 }
 
 export default function FilterSidebar({ onFilterChange }: FilterSidebarProps) {
-  const [selectedDisciplines, setSelectedDisciplines] = useState<string[]>(['Yoga']);
-  const [radius, setRadius] = useState(5);
-  const [selectedExperience, setSelectedExperience] = useState<string>('Mid-Level (3-5 years)');
-  const [weekendAvailable, setWeekendAvailable] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+  const [selectedExperience, setSelectedExperience] = useState<number | null>(null);
+  const [openToWork, setOpenToWork] = useState(false);
 
-  const disciplines = ['Yoga', 'Pilates', 'HIIT', 'Barre', 'Spin', 'CrossFit', 'Boxing', 'Breathwork'];
-  const experienceLevels = ['Junior (0-2 years)', 'Mid-Level (3-5 years)', 'Senior (5+ years)'];
+  const disciplines = ['Yoga', 'Pilates', 'HIIT', 'Barre', 'Spin', 'CrossFit', 'Boxing', 'Breathwork', 'Strength Training', 'Dance Fitness'];
+  const experienceLevels = [
+    { label: 'Junior (0-2 years)', value: 0 },
+    { label: 'Mid-Level (3-5 years)', value: 3 },
+    { label: 'Senior (5+ years)', value: 5 },
+  ];
 
-  const handleDisciplineClick = (discipline: string) => {
-    setSelectedDisciplines((prev) =>
-      prev.includes(discipline)
-        ? prev.filter((d) => d !== discipline)
-        : [...prev, discipline]
+  // Debounced filter update
+  const updateFilters = useCallback(() => {
+    const filters: Partial<InstructorFilters> = {};
+    
+    if (selectedStyles.length > 0) {
+      filters.styles = selectedStyles;
+    }
+    
+    if (selectedExperience !== null) {
+      filters.minExperience = selectedExperience;
+    }
+    
+    if (openToWork) {
+      filters.openToWork = true;
+    }
+    
+    onFilterChange(filters);
+  }, [selectedStyles, selectedExperience, openToWork, onFilterChange]);
+
+  // Update filters when selections change
+  useEffect(() => {
+    updateFilters();
+  }, [updateFilters]);
+
+  const handleStyleClick = (style: string) => {
+    setSelectedStyles((prev) =>
+      prev.includes(style)
+        ? prev.filter((s) => s !== style)
+        : [...prev, style]
     );
   };
 
-  const handleExperienceChange = (level: string) => {
-    setSelectedExperience(level);
+  const handleExperienceChange = (value: number | null) => {
+    setSelectedExperience(prev => prev === value ? null : value);
   };
 
-  const clearDisciplines = () => {
-    setSelectedDisciplines([]);
+  const clearStyles = () => {
+    setSelectedStyles([]);
   };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setSelectedStyles([]);
+    setSelectedExperience(null);
+    setOpenToWork(false);
+  };
+
+  const hasActiveFilters = selectedStyles.length > 0 || selectedExperience !== null || openToWork;
 
   return (
-    <div className="w-80 shrink-0 hidden lg:flex flex-col border-r border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark overflow-y-auto ">
-      <style jsx>{`
-        input[type='range'] {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 100%;
-          height: 8px;
-          background: transparent;
-          cursor: pointer;
-        }
-
-        input[type='range']::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: white;
-          cursor: pointer;
-          border: 3px solid #13ec5b;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        input[type='range']::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: white;
-          cursor: pointer;
-          border: 3px solid #13ec5b;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        input[type='range']::-moz-range-track {
-          background: transparent;
-          border: none;
-        }
-
-        input[type='range']::-webkit-slider-runnable-track {
-          background: transparent;
-        }
-      `}</style>
+    <div className="w-80 shrink-0 hidden lg:flex flex-col border-r border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark overflow-y-auto">
       <div className="p-6 flex flex-col gap-8">
+        {/* Header with Clear All */}
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-bold text-text-main dark:text-white">Filters</h3>
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+            >
+              <X size={14} />
+              Clear all
+            </button>
+          )}
+        </div>
+
         {/* Search */}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-bold uppercase tracking-wider text-text-muted">
@@ -84,21 +95,23 @@ export default function FilterSidebar({ onFilterChange }: FilterSidebarProps) {
           <div className="flex w-full items-center rounded-lg bg-background-light dark:bg-background-dark border border-transparent focus-within:border-primary transition-colors h-10 px-3">
             <Search size={20} className="text-text-muted shrink-0" />
             <input
-              className="w-full bg-transparent border-none t"
+              className="w-full bg-transparent border-none outline-none text-sm"
               placeholder="Name or keyword..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        {/* Discipline Filter */}
+        {/* Discipline/Style Filter */}
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <label className="text-sm font-bold uppercase tracking-wider text-text-muted">
               Discipline
             </label>
-            {selectedDisciplines.length > 0 && (
+            {selectedStyles.length > 0 && (
               <button
-                onClick={clearDisciplines}
+                onClick={clearStyles}
                 className="text-xs text-primary font-medium hover:underline"
               >
                 Clear
@@ -106,54 +119,22 @@ export default function FilterSidebar({ onFilterChange }: FilterSidebarProps) {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            {disciplines.map((discipline) => (
+            {disciplines.map((style) => (
               <button
-                key={discipline}
-                onClick={() => handleDisciplineClick(discipline)}
+                key={style}
+                onClick={() => handleStyleClick(style)}
                 className={`flex h-8 items-center justify-center gap-x-2 rounded-lg px-3 transition-colors ${
-                  selectedDisciplines.includes(discipline)
+                  selectedStyles.includes(style)
                     ? 'bg-primary text-[#111813]'
                     : 'bg-background-light dark:bg-background-dark hover:bg-gray-200 dark:hover:bg-gray-800 border border-border-light dark:border-border-dark'
                 }`}
               >
-                <span className="text-xs font-bold">{discipline}</span>
-                {selectedDisciplines.includes(discipline) && (
+                <span className="text-xs font-bold">{style}</span>
+                {selectedStyles.includes(style) && (
                   <span className="text-[14px]">×</span>
                 )}
               </button>
             ))}
-          </div>
-        </div>
-
-        {/* Location Radius */}
-        <div className="flex flex-col gap-3">
-          <div className="flex justify-between items-end">
-            <label className="text-sm font-bold uppercase tracking-wider text-text-muted">
-              Radius
-            </label>
-            <span className="text-sm font-medium text-text-main dark:text-white">
-              {radius} miles
-            </span>
-          </div>
-          <div className="relative w-full">
-            <div className="absolute top-1/2 -translate-y-1/2 w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full pointer-events-none">
-              <div
-                className="absolute h-full bg-primary rounded-full"
-                style={{ width: `${(radius / 50) * 100}%` }}
-              ></div>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="50"
-              value={radius}
-              onChange={(e) => setRadius(parseInt(e.target.value))}
-              className="relative w-full h-2"
-            />
-          </div>
-          <div className="flex items-center gap-2 text-xs text-text-muted">
-            <MapPin size={16} className="shrink-0" />
-            <span>Current Studio: Downtown</span>
           </div>
         </div>
 
@@ -165,70 +146,57 @@ export default function FilterSidebar({ onFilterChange }: FilterSidebarProps) {
           <div className="flex flex-col gap-2">
             {experienceLevels.map((level) => (
               <button
-                key={level}
-                onClick={() => handleExperienceChange(level)}
+                key={level.label}
+                onClick={() => handleExperienceChange(level.value)}
                 className="flex items-center gap-3 cursor-pointer group text-left"
               >
                 <div
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
-                    selectedExperience === level
+                    selectedExperience === level.value
                       ? 'border-primary bg-primary'
                       : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-transparent group-hover:border-primary'
                   }`}
                 >
-                  {selectedExperience === level && (
+                  {selectedExperience === level.value && (
                     <div className="w-2 h-2 bg-white rounded-full"></div>
                   )}
                 </div>
                 <span
                   className={`text-sm ${
-                    selectedExperience === level
+                    selectedExperience === level.value
                       ? 'font-medium text-text-main dark:text-white'
                       : 'text-text-main dark:text-gray-300'
                   }`}
                 >
-                  {level}
+                  {level.label}
                 </span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Availability */}
+        {/* Open to Work Toggle */}
         <div className="flex flex-col gap-3">
           <label className="text-sm font-bold uppercase tracking-wider text-text-muted">
             Availability
           </label>
-          <div className="p-3 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-text-main dark:text-white">Tomorrow</span>
-              <span className="text-xs text-text-muted">Oct 24</span>
-            </div>
-            <div className="flex gap-1">
-              <div className="h-1.5 flex-1 rounded-full bg-primary"></div>
-              <div className="h-1.5 flex-1 rounded-full bg-primary/30"></div>
-              <div className="h-1.5 flex-1 rounded-full bg-primary"></div>
-            </div>
-            <p className="text-[10px] text-text-muted mt-2">
-              High availability in morning slots.
-            </p>
-          </div>
-          <label className="flex items-center gap-2 mt-1 cursor-pointer">
+          <label className="flex items-center gap-3 cursor-pointer">
             <div
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                weekendAvailable
+              onClick={() => setOpenToWork(!openToWork)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                openToWork
                   ? 'bg-primary'
                   : 'bg-gray-200 dark:bg-gray-700'
               }`}
             >
               <span
-                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                  weekendAvailable ? 'translate-x-5' : 'translate-x-1'
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  openToWork ? 'translate-x-6' : 'translate-x-1'
                 }`}
               ></span>
             </div>
             <span className="text-sm text-text-main dark:text-gray-300">
-              Available this weekend
+              Open to work only
             </span>
           </label>
         </div>

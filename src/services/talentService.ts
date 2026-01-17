@@ -30,7 +30,6 @@ export interface InstructorFilters {
   styles?: string[];
   certifications?: string[];
   openToWork?: boolean;
-  openToGuestSpots?: boolean;
   touringReady?: boolean;
   minRating?: number;
   minExperience?: number;
@@ -76,11 +75,6 @@ export async function getInstructors(
     // Open to work filter
     if (filters?.openToWork !== undefined) {
       constraints.push(where("open_to_work", "==", filters.openToWork));
-    }
-
-    // Open to guest spots filter
-    if (filters?.openToGuestSpots !== undefined) {
-      constraints.push(where("open_to_guest_spots", "==", filters.openToGuestSpots));
     }
 
     // Touring ready filter
